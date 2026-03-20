@@ -47,7 +47,7 @@ android/app/libs
 android/keystores/debug.keystore
 
 # nativni prebuildy
-ios
-android
+/ios
+/android
 
 .expo
