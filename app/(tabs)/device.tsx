@@ -2,39 +2,11 @@ import { View, Text, Switch } from "react-native";
 import { useState, useRef } from "react";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
-import { useDeviceStore } from "~/store/useDeviceStore";
+import { useDeviceStore, Slot } from "~/store/useDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
 import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
-
-interface Slot {
-	id: string;
-	dayName: string;
-	timeLabel: string;
-	taken: boolean;
-}
-
-const DAYS = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"];
-
-const COL_A: Slot[] = DAYS.map((day, i) => ({
-	id: `A${i + 1}`,
-	dayName: day,
-	timeLabel: "Ráno",
-	taken: i < 3,
-}));
-
-const COL_B: Slot[] = DAYS.map((day, i) => ({
-	id: `B${i + 1}`,
-	dayName: day,
-	timeLabel: "Večer",
-	taken: i < 2,
-}));
-
-const H_MARGIN = 16;
-const INNER_PAD = 12;
-const COL_GAP = 6;
-const ROW_GAP = 5;
 
 function SlotCell({ slot }: { slot: Slot }) {
 	const bgClass = slot.taken
@@ -63,7 +35,6 @@ const LEGEND = [
 	{ color: "#ef4444", label: "nevyzvednuto" },
 ] as const;
 
-const takenCount = [...COL_A, ...COL_B].filter((s) => s.taken).length;
 
 export default function DeviceScreen() {
 	const [ledOn, setLedOn] = useState(false);
@@ -71,6 +42,10 @@ export default function DeviceScreen() {
 	const isConnected = useDeviceStore((state) => state.isConnected);
 	const battery = useDeviceStore((state) => state.battery);
 	const temperature = useDeviceStore((state) => state.temperature);
+	const slotsA = useDeviceStore((state) => state.slotsA);
+	const slotsB = useDeviceStore((state) => state.slotsB);
+
+	const takenCount = [...slotsA, ...slotsB].filter((s) => s.taken).length;
 
 	return (
 		<SafeAreaView className="bg-zinc-50 dark:bg-zinc-950 flex-1">
@@ -87,11 +62,8 @@ export default function DeviceScreen() {
 
 			{isConnected ? (
 				<>
-					<View
-						style={{ marginHorizontal: H_MARGIN, padding: INNER_PAD }}
-						className="flex-1 border-zinc-300 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 rounded-[24px] border-[1.5px] shadow-sm"
-					>
-						<View className="mb-3 flex-row" style={{ gap: COL_GAP }}>
+					<View className="flex-1 mx-4 p-3 gap-[5px] border-zinc-300 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 rounded-[24px] border-[1.5px] shadow-sm">
+						<View className="flex-row gap-1.5 pb-2">
 							<View className="flex-1 items-center">
 								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">RÁNO</Text>
 							</View>
@@ -100,17 +72,10 @@ export default function DeviceScreen() {
 							</View>
 						</View>
 
-						{COL_A.map((slotA, i) => (
-							<View
-								key={i}
-								className="flex-1 flex-row"
-								style={{
-									gap: COL_GAP,
-									marginBottom: i < COL_A.length - 1 ? ROW_GAP : 0,
-								}}
-							>
+						{slotsA.map((slotA, i) => (
+							<View key={i} className="flex-1 flex-row gap-1.5">
 								<SlotCell slot={slotA} />
-								<SlotCell slot={COL_B[i]} />
+								<SlotCell slot={slotsB[i]} />
 							</View>
 						))}
 					</View>
@@ -124,7 +89,7 @@ export default function DeviceScreen() {
 						))}
 					</View>
 
-					<View className="mt-8 flex-row gap-4 px-1">
+					<View className="mt-8 flex-row mx-4 gap-1.5">
 						<View className="flex-1 rounded-[24px] border-[1.5px] border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 							<View className="mb-2 flex-row items-center gap-2">
 								<View className="h-8 w-8 items-center justify-center rounded-full bg-green-500/15">

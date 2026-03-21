@@ -39,29 +39,37 @@ export default function Layout() {
 					}
 				}
 
-				//await BleWrapperModule.connectToXiao();
+				await BleWrapperModule.connectToXiao();
 			} catch (e) {
 				console.error(e);
 			}
 		})();
 
 		// Sync initial state
-		// useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
+		useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
-		useDeviceStore.getState().setIsConnected(true);
+		//useDeviceStore.getState().setIsConnected(true);
 
 		// Listen globally
-		// const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
-		// 	useDeviceStore.getState().setIsConnected(event.connected);
-		// });
-		// const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
-		// 	useDeviceStore.getState().setIsConnected(event.connected);
-		// });
+		const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
+			useDeviceStore.getState().setIsConnected(event.connected);
+		});
 
-		// return () => {
-		// 	connSub.remove();
-		// 	disconnSub.remove();
-		// };
+		const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
+			useDeviceStore.getState().setIsConnected(event.connected);
+		});
+
+		const buttonSub = BleWrapperModule.addListener("onButtonPress", (event) => {
+			if (event.pressed) {
+				useDeviceStore.getState().toggleSlotB6();
+			}
+		});
+
+		return () => {
+			connSub.remove();
+			disconnSub.remove();
+			buttonSub.remove();
+		};
 	}, []);
 
 	return (
