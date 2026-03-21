@@ -1,283 +1,264 @@
-import { useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, Text, Switch, Alert, Pressable } from "react-native";
+import { useState, useRef, useEffect } from "react";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
+import { useBleDeviceStore, Slot } from "~/store/useBleDeviceStore";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
+import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
+import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
 
-type DoseStatus = "waiting" | "taken" | "missed" | "skipped";
-
-interface Dose {
-	id: string;
-	medicationName: string;
-	strength: string;
-	compartment: string;
-	status: DoseStatus;
-	foodRelation?: string;
-}
-
-interface TimeGroup {
-	id: string;
-	label: string;
-	time: string;
-	doses: Dose[];
-}
-
-const INITIAL_DATA: TimeGroup[] = [
-	{
-		id: "morning",
-		label: "Ráno",
-		time: "08:00",
-		doses: [
-			{
-				id: "1",
-				medicationName: "Metformin",
-				strength: "500 mg",
-				compartment: "A1",
-				status: "taken",
-				foodRelation: "s jídlem",
-			},
-			{
-				id: "2",
-				medicationName: "Atorvastatin",
-				strength: "20 mg",
-				compartment: "A2",
-				status: "taken",
-			},
-		],
-	},
-	{
-		id: "noon",
-		label: "Poledne",
-		time: "13:00",
-		doses: [
-			{
-				id: "3",
-				medicationName: "Metformin",
-				strength: "500 mg",
-				compartment: "A1",
-				status: "waiting",
-				foodRelation: "s jídlem",
-			},
-		],
-	},
-	{
-		id: "evening",
-		label: "Večer",
-		time: "21:00",
-		doses: [
-			{
-				id: "4",
-				medicationName: "Metformin",
-				strength: "500 mg",
-				compartment: "A1",
-				status: "waiting",
-			},
-			{
-				id: "5",
-				medicationName: "Ramipril",
-				strength: "5 mg",
-				compartment: "B1",
-				status: "waiting",
-			},
-		],
-	},
-];
-
-function formatDate(date: Date): string {
-	return date.toLocaleDateString("cs-CZ", {
-		weekday: "long",
-		day: "numeric",
-		month: "long",
-	});
-}
-
-function StatusPill({ status }: { status: DoseStatus }) {
-	const map = {
-		waiting: { container: "bg-zinc-200 dark:bg-zinc-800", text: "text-zinc-600 dark:text-zinc-400", label: "čeká" },
-		taken: { container: "bg-teal-100 dark:bg-teal-950", text: "text-teal-700 dark:text-teal-400", label: "vzato" },
-		missed: { container: "bg-red-100 dark:bg-red-950", text: "text-red-700 dark:text-red-400", label: "zmeškáno" },
-		skipped: {
-			container: "bg-zinc-100 dark:bg-zinc-900",
-			text: "text-zinc-500 dark:text-zinc-500",
-			label: "přeskočeno",
-		},
-	};
-	const c = map[status];
-	return (
-		<View className={`px-2.5 py-1 rounded-full ${c.container}`}>
-			<Text className={`text-xs font-semibold ${c.text}`}>{c.label}</Text>
-		</View>
-	);
-}
-
-function DoseRow({ dose, onPress, onLongPress }: { dose: Dose; onPress: () => void; onLongPress: () => void }) {
-	const dotClass =
-		dose.status === "taken"
-			? "bg-teal-400"
-			: dose.status === "missed"
-				? "bg-red-400"
-				: "bg-zinc-300 dark:bg-zinc-700";
+function SlotCell({ slot }: { slot: Slot }) {
+	const bgClass = slot.taken
+		? "bg-green-100 border-green-500 dark:bg-green-900/40 dark:border-green-500"
+		: "bg-zinc-100 border-zinc-300 dark:bg-zinc-800/40 dark:border-zinc-700";
+	const textClass = slot.taken ? "text-green-800 dark:text-green-200" : "text-zinc-500 dark:text-zinc-400";
+	const subTextClass = slot.taken ? "text-green-600 dark:text-green-500" : "text-zinc-400 dark:text-zinc-500";
+	const dotClass = slot.taken ? "bg-green-500" : "bg-zinc-400 dark:bg-zinc-500";
 
 	return (
-		<Pressable
-			onPress={onPress}
-			onLongPress={onLongPress}
-			className="flex-row items-center px-4 py-3.5 active:bg-zinc-200/50 dark:active:bg-zinc-800/40"
-		>
-			<View className={`w-2 h-2 rounded-full mr-3 ${dotClass}`} />
-			<View className="flex-1">
-				<View className="flex-row items-center gap-2">
-					<Text className="text-zinc-900 dark:text-white font-semibold text-base">{dose.medicationName}</Text>
-					<Text className="text-zinc-500 dark:text-zinc-400 text-sm">{dose.strength}</Text>
-				</View>
-				<View className="flex-row items-center gap-2 mt-0.5">
-					<Text className="text-zinc-500 dark:text-zinc-600 text-xs">Přihrádka {dose.compartment}</Text>
-					{dose.foodRelation && (
-						<>
-							<Text className="text-zinc-300 dark:text-zinc-700">·</Text>
-							<Text className="text-zinc-500 dark:text-zinc-600 text-xs">{dose.foodRelation}</Text>
-						</>
-					)}
-				</View>
-			</View>
-			<StatusPill status={dose.status} />
-		</Pressable>
-	);
-}
-
-function TimeSection({
-	group,
-	onDosePress,
-	onDoseLongPress,
-}: {
-	group: TimeGroup;
-	onDosePress: (id: string) => void;
-	onDoseLongPress: (id: string) => void;
-}) {
-	const allTaken = group.doses.every((d) => d.status === "taken");
-
-	return (
-		<View className="mb-5">
-			<View className="flex-row items-center px-4 mb-2">
-				<Text className="text-zinc-500 text-xs font-bold tracking-widest uppercase">{group.label}</Text>
-				<Text className="text-zinc-900 dark:text-zinc-300 font-medium text-xs ml-2">{group.time}</Text>
-				{allTaken && (
-					<View className="ml-auto">
-						<Ionicons name="checkmark-circle" size={16} color="#eab308" />
-					</View>
-				)}
-			</View>
-			<View className="mx-4 bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
-				{group.doses.map((dose, index) => (
-					<View key={dose.id}>
-						{index > 0 && <View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />}
-						<DoseRow
-							dose={dose}
-							onPress={() => onDosePress(dose.id)}
-							onLongPress={() => onDoseLongPress(dose.id)}
-						/>
-					</View>
-				))}
+		<View className={`flex-1 flex-row items-center gap-2 rounded-xl px-2.5 py-1 opacity-50 ${bgClass} border`}>
+			<View className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
+			<View className="flex-1 gap-0.5">
+				<Text className={`text-[9px] font-bold tracking-widest ${subTextClass}`}>{slot.id}</Text>
+				<Text className={`text-[13px] font-bold leading-[15px] ${textClass}`} numberOfLines={1}>
+					{slot.dayName}
+				</Text>
 			</View>
 		</View>
 	);
 }
 
-export default function TodayScreen() {
-	const [groups, setGroups] = useState<TimeGroup[]>(INITIAL_DATA);
-	const bleConnected = true;
-	const lowStockMed = "Metformin";
-	const lowStockDays = 5;
-	const insets = useSafeAreaInsets();
+const LEGEND = [
+	{ color: "#22c55e", label: "Vybráno" },
+	{ color: "#a1a1aa", label: "Nevybráno" },
+] as const;
 
-	const allDoses = groups.flatMap((g) => g.doses);
-	const takenCount = allDoses.filter((d) => d.status === "taken").length;
-	const totalCount = allDoses.length;
-	const progress = totalCount > 0 ? takenCount / totalCount : 0;
+export default function DeviceScreen() {
+	const [alertsEnabled, setAlertsEnabled] = useState(true);
+	const bottomSheetRef = useRef<BottomSheetModal>(null);
+	const router = useRouter();
+	const isConnected = useBleDeviceStore((state) => state.isConnected);
+	const battery = useBleDeviceStore((state) => state.battery);
+	const temperature = useBleDeviceStore((state) => state.temperature);
+	const slotsA = useBleDeviceStore((state) => state.slotsA);
+	const slotsB = useBleDeviceStore((state) => state.slotsB);
+	const lastSyncTime = useBleDeviceStore((state) => state.lastSyncTime);
 
-	function toggleDose(doseId: string) {
-		setGroups((prev) =>
-			prev.map((group) => ({
-				...group,
-				doses: group.doses.map((dose) =>
-					dose.id === doseId ? { ...dose, status: dose.status === "taken" ? "waiting" : "taken" } : dose,
-				),
-			})),
-		);
-	}
+	useEffect(() => {
+		const s = getDeviceSettings();
+		if (s && s.alerts_enabled !== null && s.alerts_enabled !== undefined) {
+			setAlertsEnabled(s.alerts_enabled === 1);
+		}
+	}, []);
 
-	function handleLongPress(doseId: string) {
-		Alert.alert("Možnosti dávky", undefined, [
-			{
-				text: "Přeskočit",
-				onPress: () =>
-					setGroups((prev) =>
-						prev.map((group) => ({
-							...group,
-							doses: group.doses.map((dose) =>
-								dose.id === doseId ? { ...dose, status: "skipped" } : dose,
-							),
-						})),
-					),
-			},
-			{ text: "Odložit o 15 min", style: "default" },
-			{ text: "Zrušit", style: "cancel" },
-		]);
-	}
+	const takenCount = [...slotsA, ...slotsB].filter((s) => s.taken).length;
 
 	return (
-		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
-			<View className="px-4 pt-2 pb-5">
-				<View className="flex-row items-start justify-between">
-					<View>
-						<Text className="text-zinc-500 text-sm capitalize">{formatDate(new Date())}</Text>
-						<Text className="text-zinc-900 dark:text-white text-2xl font-bold mt-0.5">Dnešní dávky</Text>
+		<SafeAreaView className="bg-zinc-50 dark:bg-zinc-950 flex-1">
+			<View className="px-5 pb-4 pt-2">
+				<View className="flex-row items-center justify-between">
+					<View className={!isConnected ? "invisible" : ""}>
+						<Text className="text-zinc-900 dark:text-white text-[22px] font-bold">Lékovka Alpha</Text>
+						<Text className="text-zinc-500 mt-0.5 text-[13px]">{takenCount} ze 14 léků vyzvednuto</Text>
 					</View>
 
-					{/* BLE badge */}
-					<Pressable className="flex-row items-center gap-2 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 mt-1 active:border-zinc-300 dark:active:border-zinc-700">
-						<View
-							className={`w-1.5 h-1.5 rounded-full ${bleConnected ? "bg-teal-400" : "bg-zinc-400 dark:bg-zinc-500"}`}
+					<View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+						<BluetoothStatusPill
+							isConnected={isConnected}
+							onPress={() => bottomSheetRef.current?.present()}
 						/>
-						<Ionicons name="bluetooth" size={15} color={bleConnected ? "#facc15" : "#71717a"} />
-					</Pressable>
+						{isConnected && (
+							<Pressable
+								onPress={() => router.push("/settings")}
+								className="active:opacity-60"
+								style={{
+									width: 36,
+									height: 36,
+									borderRadius: 12,
+									alignItems: "center",
+									justifyContent: "center",
+									backgroundColor: "#eab30820",
+									borderWidth: 1,
+									borderColor: "#eab30850",
+								}}
+							>
+								<Ionicons name="settings" size={18} color="#eab308" className="" />
+							</Pressable>
+						)}
+					</View>
 				</View>
+			</View>
 
-				{/* Progress bar */}
-				<View className="mt-4">
-					<View className="flex-row justify-between mb-1.5">
-						<Text className="text-zinc-500 text-xs font-medium">Dnešní pokrok</Text>
-						<Text className="text-teal-600 dark:text-teal-400 text-xs font-bold">
-							{takenCount}/{totalCount} dávek
+			{isConnected ? (
+				<>
+					<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 gap-[5px] mx-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+						<View className="flex-row gap-1.5 pb-2">
+							<View className="flex-1 items-center">
+								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">RÁNO</Text>
+							</View>
+							<View className="flex-1 items-center">
+								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">VEČER</Text>
+							</View>
+						</View>
+
+						{slotsA.map((slotA, i) => (
+							<View key={i} className="flex-1 flex-row gap-1.5">
+								<SlotCell slot={slotA} />
+								<SlotCell slot={slotsB[i]} />
+							</View>
+						))}
+					</View>
+
+					<View className="mt-3.5 flex-row justify-center gap-5">
+						{LEGEND.map((item) => (
+							<View key={item.label} className="flex-row items-center gap-1.5">
+								<View
+									style={{ backgroundColor: item.color }}
+									className="h-2 w-2 rounded-sm opacity-50"
+								/>
+								<Text className="text-zinc-500 text-[11px]">{item.label}</Text>
+							</View>
+						))}
+					</View>
+
+					<View className="mt-8 flex-row mx-4 gap-3">
+						<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+							<View className="mb-2 flex-row items-center gap-2">
+								<View className="h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
+									<Ionicons name="battery-half" size={20} color="#22c55e" />
+								</View>
+								<Text className="text-zinc-500 text-[13px] font-semibold tracking-wide">BATERIE</Text>
+							</View>
+							<Text className="text-zinc-900 dark:text-white text-[22px] font-bold">
+								{battery !== null ? `${battery} %` : "--"}
+							</Text>
+						</View>
+
+						<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+							<View className="mb-2 flex-row items-center gap-2">
+								<View className="h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
+									<Ionicons name="thermometer" size={20} color="#f97316" />
+								</View>
+								<Text className="text-zinc-500 text-[13px] font-semibold tracking-wide">TEPLOTA</Text>
+							</View>
+							<Text className="text-zinc-900 dark:text-white text-[22px] font-bold">
+								{temperature !== null ? `${temperature} °C` : "--"}
+							</Text>
+						</View>
+					</View>
+
+					{lastSyncTime && (
+						<Text className="mt-4 text-center text-[10px] font-medium tracking-widest text-zinc-400 dark:text-zinc-500 uppercase">
+							Poslední synchronizace:{" "}
+							{lastSyncTime.toLocaleString("cs-CZ", {
+								day: "numeric",
+								month: "numeric",
+								hour: "2-digit",
+								minute: "2-digit",
+							})}
 						</Text>
+					)}
+				</>
+			) : (
+				<View className="flex-1 items-center justify-center gap-4 px-10 pb-[60px]">
+					<View
+						style={{
+							marginBottom: 8,
+							width: 96,
+							height: 96,
+							borderRadius: 48,
+							alignItems: "center",
+							justifyContent: "center",
+							backgroundColor: "#eab308",
+						}}
+					>
+						<Ionicons name="bluetooth" size={40} color="#713f12" />
 					</View>
-					<View className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-						<View className="h-full bg-teal-500 rounded-full" style={{ width: `${progress * 100}%` }} />
-					</View>
-				</View>
-			</View>
 
-			{/* Low stock banner */}
-			{lowStockMed && (
-				<View className="mx-4 mb-5 flex-row items-center gap-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25 rounded-2xl px-4 py-3">
-					<Ionicons name="warning" size={18} color="#f59e0b" />
-					<Text className="text-amber-800 dark:text-amber-400 text-sm flex-1">
-						<Text className="font-bold">{lowStockMed}</Text> dojde za{" "}
-						<Text className="font-bold">{lowStockDays} dní</Text>
+					<Text className="text-zinc-900 dark:text-white text-center text-[22px] font-semibold">
+						Lékovka mimo dosah
+					</Text>
+
+					<Text className="text-zinc-500 text-center text-[15px] leading-[22px]">
+						Pro konfiguraci lékovky se k ní prosím přibližte.
 					</Text>
 				</View>
 			)}
 
-			{/* Time groups */}
-			<View className="pb-8">
-				{groups.map((group) => (
-					<TimeSection
-						key={group.id}
-						group={group}
-						onDosePress={toggleDose}
-						onDoseLongPress={handleLongPress}
-					/>
-				))}
-			</View>
-		</View>
+			<SettingsBottomSheet ref={bottomSheetRef}>
+				<Text className="text-zinc-900 dark:text-white text-[18px] font-bold mb-4">Nastavení lékovky</Text>
+
+				<View className="gap-3">
+					<View className="flex-row items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+						<View className="flex-row items-center gap-4">
+							<View className="w-10 h-10 rounded-full bg-blue-500/10 items-center justify-center">
+								<Ionicons name="volume-high" size={20} color={alertsEnabled ? "#3b82f6" : "#71717a"} />
+							</View>
+							<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
+								Zvukové upozornění
+							</Text>
+						</View>
+
+						<Switch
+							value={alertsEnabled}
+							onValueChange={async (val) => {
+								try {
+									await BleWrapperModule.setAlertsEnabled(val);
+									setAlertsEnabled(val);
+									updateDeviceSettings({ alerts_enabled: val });
+								} catch (e) {
+									console.error(e);
+								}
+							}}
+							trackColor={{ false: "#3f3f46", true: "#3b82f6" }}
+							thumbColor="#ffffff"
+						/>
+					</View>
+
+					<Pressable
+						onPress={async () => {
+							try {
+								await BleWrapperModule.findMy();
+							} catch (e) {
+								console.error(e);
+							}
+						}}
+						className="flex-row items-center p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 active:opacity-70"
+					>
+						<View className="w-10 h-10 rounded-full bg-red-500/10 items-center justify-center mr-4">
+							<Ionicons name="location" size={20} color="#ef4444" />
+						</View>
+						<Text className="text-zinc-900 dark:text-white text-[15px] font-medium flex-1">
+							Najít lékovku
+						</Text>
+						<Ionicons name="chevron-forward" size={18} color="#71717a" />
+					</Pressable>
+
+					<Pressable
+						onPress={async () => {
+							try {
+								await BleWrapperModule.syncTime();
+								Alert.alert("Úspěch", "Čas byl synchronizován s telefonem.");
+							} catch (e) {
+								console.error(e);
+								Alert.alert("Chyba", "Nepodařilo se synchronizovat čas.");
+							}
+						}}
+						className="flex-row items-center p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 active:opacity-70"
+					>
+						<View className="w-10 h-10 rounded-full bg-indigo-500/10 items-center justify-center mr-4">
+							<Ionicons name="time" size={20} color="#6366f1" />
+						</View>
+						<Text className="text-zinc-900 dark:text-white text-[15px] font-medium flex-1">
+							Synchronizovat čas
+						</Text>
+						<Ionicons name="chevron-forward" size={18} color="#71717a" />
+					</Pressable>
+				</View>
+			</SettingsBottomSheet>
+		</SafeAreaView>
 	);
 }

@@ -143,7 +143,16 @@ export default function Layout() {
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<SafeAreaProvider>
 				<BottomSheetModalProvider>
-					<Stack screenOptions={{ headerShown: false, animation: "none" }} />
+					<Stack screenOptions={{ headerShown: false, animation: "none" }}>
+						<Stack.Screen name="(tabs)" />
+						<Stack.Screen
+							name="settings"
+							options={{
+								presentation: "modal",
+								animation: "slide_from_bottom",
+							}}
+						/>
+					</Stack>
 					<StatusBar style="auto" />
 				</BottomSheetModalProvider>
 			</SafeAreaProvider>
