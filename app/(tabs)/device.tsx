@@ -1,5 +1,5 @@
 import { View, Text, Dimensions, useColorScheme, TouchableOpacity, PermissionsAndroid, Platform } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -155,6 +155,28 @@ export default function DeviceScreen() {
 	const [macAddress, setMacAddress] = useState<string | null>(null);
 	const [accelData, setAccelData] = useState<string | null>(null);
 	const [ledOn, setLedOn] = useState(false);
+	const [isConnected, setIsConnected] = useState(() => BleWrapperModule.isConnected());
+
+	useEffect(() => {
+		const accelSub = BleWrapperModule.addListener("onAccelData", (event) => {
+			//console.log(event);
+			setAccelData(event.value);
+		});
+		const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
+			console.log(event);
+			setIsConnected(event.connected);
+		});
+		const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
+			console.log(event);
+			setIsConnected(event.connected);
+		});
+
+		return () => {
+			accelSub.remove();
+			connSub.remove();
+			disconnSub.remove();
+		};
+	}, []);
 
 	const deviceBg = isDark ? "#141417" : "#f4f4f5";
 	const deviceBorder = isDark ? "#2e2e33" : "#d4d4d8";
@@ -162,7 +184,6 @@ export default function DeviceScreen() {
 
 	return (
 		<SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#09090b" : "#fafafa" }}>
-			{/* Header */}
 			<View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18 }}>
 				<View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
 					<View>
@@ -171,6 +192,7 @@ export default function DeviceScreen() {
 							{filledCount} z 14 přihrádek obsazeno
 						</Text>
 					</View>
+
 					<View
 						style={{
 							flexDirection: "row",
@@ -179,18 +201,36 @@ export default function DeviceScreen() {
 							paddingHorizontal: 12,
 							paddingVertical: 8,
 							borderRadius: 12,
-							backgroundColor: isDark ? "#422006" : "#fefce8",
+							backgroundColor: isConnected
+								? isDark
+									? "#422006"
+									: "#fefce8"
+								: isDark
+									? "#18181b"
+									: "#f4f4f5",
 							borderWidth: 1,
-							borderColor: isDark ? "#14b8a640" : "#fef08a",
+							borderColor: isConnected
+								? isDark
+									? "#eab30840"
+									: "#fef08a"
+								: isDark
+									? "#27272a"
+									: "#e4e4e7",
 						}}
 					>
-						<View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: "#eab308" }} />
-						<Ionicons name="bluetooth" size={14} color="#eab308" />
+						<View
+							style={{
+								width: 7,
+								height: 7,
+								borderRadius: 99,
+								backgroundColor: isConnected ? "#eab308" : "#a1a1aa",
+							}}
+						/>
+						<Ionicons name="bluetooth" size={14} color={isConnected ? "#eab308" : "#a1a1aa"} />
 					</View>
 				</View>
 			</View>
 
-			{/* Device card */}
 			<View
 				style={{
 					marginHorizontal: H_MARGIN,
@@ -273,12 +313,14 @@ export default function DeviceScreen() {
 
 							const addr = await BleWrapperModule.scanForXiao();
 							setMacAddress(addr);
+							await BleWrapperModule.connect(addr);
 						} catch (e) {
 							console.error(e);
 						}
 					}}
 					isDark={isDark}
 				/>
+
 				<ActionButton
 					icon="stop-circle"
 					iconColor="#f43f5e"
@@ -286,41 +328,42 @@ export default function DeviceScreen() {
 					onPress={async () => {
 						try {
 							await BleWrapperModule.stopScan();
+							if (BleWrapperModule.isConnected()) {
+								await BleWrapperModule.disconnect();
+							}
 						} catch (e) {
 							console.error(e);
 						}
 					}}
 					isDark={isDark}
 				/>
+
 				<ActionButton
 					icon="speedometer"
 					iconColor="#3b82f6"
 					label="Accel"
 					onPress={async () => {
-						if (macAddress) {
-							try {
-								const data = await BleWrapperModule.readAccelerometer(macAddress);
-								setAccelData(data);
-								console.log(data);
-							} catch (e) {
-								console.error(e);
-							}
+						try {
+							const data = await BleWrapperModule.readAccelerometer();
+							setAccelData(data);
+							console.log(data);
+						} catch (e) {
+							console.error(e);
 						}
 					}}
 					isDark={isDark}
 				/>
+
 				<ActionButton
 					icon="bulb"
 					iconColor={ledOn ? "#eab308" : "#71717a"}
 					label="LED"
 					onPress={async () => {
-						if (macAddress) {
-							try {
-								await BleWrapperModule.setLed(macAddress, !ledOn);
-								setLedOn(!ledOn);
-							} catch (e) {
-								console.error(e);
-							}
+						try {
+							await BleWrapperModule.setLed(!ledOn);
+							setLedOn(!ledOn);
+						} catch (e) {
+							console.error(e);
 						}
 					}}
 					isDark={isDark}
