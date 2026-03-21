@@ -158,6 +158,8 @@ export default function DeviceScreen() {
 	const [isConnected, setIsConnected] = useState(() => BleWrapperModule.isConnected());
 
 	useEffect(() => {
+		BleWrapperModule.connectToXiao();
+
 		const accelSub = BleWrapperModule.addListener("onAccelData", (event) => {
 			//console.log(event);
 			setAccelData(event.value);
