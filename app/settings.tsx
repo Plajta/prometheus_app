@@ -8,7 +8,6 @@ import {
 	useColorScheme,
 	useWindowDimensions,
 	Alert,
-	FlatList,
 	Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -139,73 +138,6 @@ function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle
 const ITEM_H = 44;
 const VISIBLE = 3;
 
-function NumberPicker({
-	value,
-	onChange,
-	min = 0,
-	max = 59,
-	isDark,
-}: {
-	value: number;
-	onChange: (v: number) => void;
-	min?: number;
-	max?: number;
-	isDark: boolean;
-}) {
-	const items = useMemo(() => Array.from({ length: max - min + 1 }, (_, i) => min + i), [min, max]);
-	const listRef = useRef<FlatList>(null);
-
-	useEffect(() => {
-		const idx = items.indexOf(value);
-		if (idx >= 0) listRef.current?.scrollToIndex({ index: idx, animated: false });
-	}, []);
-
-	return (
-		<View style={{ height: ITEM_H * VISIBLE, overflow: "hidden", position: "relative" }}>
-			<View
-				style={{
-					position: "absolute",
-					top: ITEM_H,
-					left: 0,
-					right: 0,
-					height: ITEM_H,
-					backgroundColor: isDark ? "#27272a" : "#e4e4e7",
-					borderRadius: 10,
-				}}
-				pointerEvents="none"
-			/>
-			<FlatList
-				ref={listRef}
-				data={items}
-				keyExtractor={(i) => String(i)}
-				showsVerticalScrollIndicator={false}
-				snapToInterval={ITEM_H}
-				decelerationRate="fast"
-				getItemLayout={(_, index) => ({ length: ITEM_H, offset: ITEM_H * index, index })}
-				onMomentumScrollEnd={(e) => {
-					const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
-					onChange(items[Math.max(0, Math.min(idx, items.length - 1))]);
-				}}
-				contentContainerStyle={{ paddingVertical: ITEM_H }}
-				renderItem={({ item }) => (
-					<View style={{ height: ITEM_H, alignItems: "center", justifyContent: "center" }}>
-						<Text
-							style={{
-								fontSize: 20,
-								fontWeight: item === value ? "700" : "400",
-								color:
-									item === value ? (isDark ? "#ffffff" : "#18181b") : isDark ? "#52525b" : "#a1a1aa",
-							}}
-						>
-							{String(item).padStart(2, "0")}
-						</Text>
-					</View>
-				)}
-			/>
-		</View>
-	);
-}
-
 function timeStrToDate(t: string): Date {
 	const [h, m] = t.split(":").map(Number);
 	const d = new Date();
@@ -292,7 +224,13 @@ function PickerRow({
 	);
 }
 
-function AlarmsSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: (morning: string, evening: string) => void }) {
+function AlarmsSheet({
+	onClose,
+	onSaved,
+}: {
+	onClose: () => void;
+	onSaved?: (morning: string, evening: string) => void;
+}) {
 	const isDark = useColorScheme() === "dark";
 	const insets = useSafeAreaInsets();
 	const bottomPad = Platform.OS === "android" ? Math.max(insets.bottom, 16) : 24;
@@ -521,8 +459,6 @@ function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: 
 	);
 }
 
-// ─── Family sheet ─────────────────────────────────────────────────────────────
-
 type FamilyView = "list" | "camera" | "nameInput";
 
 interface FamilySheetProps {
@@ -536,21 +472,16 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 	const { deviceId } = useDeviceStore();
 	const { height } = useWindowDimensions();
 	const insets = useSafeAreaInsets();
-	// Android: přidáme spodní safe area kvůli navigačním tlačítkům
 	const bottomPad = Platform.OS === "android" ? Math.max(insets.bottom, 16) : 24;
-	// 70 % výška sheetu − hlavička − popis − padding
 	const cameraHeight = Math.round(height * 0.7 - 140);
 
 	const [view, setView] = useState<FamilyView>("list");
-	/** device_id naskenovaného příbuzného */
 	const [scannedDeviceId, setScannedDeviceId] = useState("");
 	const [newName, setNewName] = useState("");
 	const [loading, setLoading] = useState(false);
 	const scannedRef = useRef(false);
 
 	const [permission, requestPermission] = useCameraPermissions();
-
-	// ── Camera ────────────────────────────────────────────────────────────────
 
 	const handleOpenCamera = async () => {
 		if (!permission?.granted) {
@@ -569,13 +500,10 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 		setView("nameInput");
 	};
 
-	// ── Add relation ──────────────────────────────────────────────────────────
-
 	const handleAdd = async () => {
 		if (!deviceId || !scannedDeviceId || !newName.trim()) return;
 		setLoading(true);
 		try {
-			// Já (watcher) sleduji naskenovaného (watched)
 			const { id } = await addFamilyRelation(deviceId, scannedDeviceId, newName.trim());
 			const newRelation: FamilyRelation = {
 				id,
@@ -590,7 +518,6 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 			setNewName("");
 			onAfterAdd();
 		} catch {
-			// server error — uživatel může zkusit znovu
 		} finally {
 			setLoading(false);
 		}
@@ -603,9 +530,6 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 		} catch {}
 	};
 
-	// ── Views ─────────────────────────────────────────────────────────────────
-
-	// Kamera + QR skener
 	if (view === "camera") {
 		return (
 			<View className="flex-1 pt-2 gap-4" style={{ paddingBottom: bottomPad }}>
@@ -625,7 +549,6 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 						barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
 						onBarcodeScanned={handleBarcodeScanned}
 					/>
-					{/* QR frame overlay */}
 					<View className="absolute inset-0 items-center justify-center" pointerEvents="none">
 						<View style={{ width: 200, height: 200 }}>
 							{[
@@ -773,7 +696,12 @@ export default function SettingsScreen() {
 	useEffect(() => {
 		const s = getDeviceSettings();
 		if (s?.alarm_interval != null) setEscalationLabel(`${Math.floor(s.alarm_interval / 60)} min`);
-		if (s?.alarm_morning_h != null && s?.alarm_morning_m != null && s?.alarm_evening_h != null && s?.alarm_evening_m != null) {
+		if (
+			s?.alarm_morning_h != null &&
+			s?.alarm_morning_m != null &&
+			s?.alarm_evening_h != null &&
+			s?.alarm_evening_m != null
+		) {
 			const m = `${String(s.alarm_morning_h).padStart(2, "0")}:${String(s.alarm_morning_m).padStart(2, "0")}`;
 			const e = `${String(s.alarm_evening_h).padStart(2, "0")}:${String(s.alarm_evening_m).padStart(2, "0")}`;
 			setAlarmsLabel(`${m} — ${e}`);
@@ -899,9 +827,9 @@ export default function SettingsScreen() {
 			<BottomSheetModal ref={alarmsSheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<AlarmsSheet
-					onClose={() => alarmsSheetRef.current?.dismiss()}
-					onSaved={(m, e) => setAlarmsLabel(`${m} — ${e}`)}
-				/>
+						onClose={() => alarmsSheetRef.current?.dismiss()}
+						onSaved={(m, e) => setAlarmsLabel(`${m} — ${e}`)}
+					/>
 				</BottomSheetView>
 			</BottomSheetModal>
 

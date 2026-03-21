@@ -133,25 +133,35 @@ function SlotCell({
 				<>
 					<Pressable
 						onPress={() => {
-							if (suppressPress.current) { suppressPress.current = false; return; }
+							if (suppressPress.current) {
+								suppressPress.current = false;
+								return;
+							}
 							handleChoose(true);
 						}}
 						className="flex-1 items-center justify-center py-2 rounded-xl border-[1.5px]"
 						style={{ backgroundColor: isDark ? "#052e16" : "#dcfce7", borderColor: "#22c55e" }}
 					>
 						<Ionicons name="checkmark" size={18} color="#22c55e" />
-						<Text className="text-[9px] font-bold mt-0.5" style={{ color: "#22c55e" }}>Vzato</Text>
+						<Text className="text-[9px] font-bold mt-0.5" style={{ color: "#22c55e" }}>
+							Vzato
+						</Text>
 					</Pressable>
 					<Pressable
 						onPress={() => {
-							if (suppressPress.current) { suppressPress.current = false; return; }
+							if (suppressPress.current) {
+								suppressPress.current = false;
+								return;
+							}
 							handleChoose(false);
 						}}
 						className="flex-1 items-center justify-center py-2 rounded-xl border-[1.5px]"
 						style={{ backgroundColor: isDark ? "#2d0a0a" : "#fee2e2", borderColor: "#ef4444" }}
 					>
 						<Ionicons name="close" size={18} color="#ef4444" />
-						<Text className="text-[9px] font-bold mt-0.5" style={{ color: "#ef4444" }}>Přeskočit</Text>
+						<Text className="text-[9px] font-bold mt-0.5" style={{ color: "#ef4444" }}>
+							Přeskočit
+						</Text>
 					</Pressable>
 				</>
 			) : (
@@ -159,15 +169,24 @@ function SlotCell({
 					onLongPress={handleLongPress}
 					delayLongPress={400}
 					onPress={() => {
-						if (suppressPress.current) { suppressPress.current = false; return; }
+						if (suppressPress.current) {
+							suppressPress.current = false;
+							return;
+						}
 					}}
 					className="flex-1 flex-row items-center gap-2 rounded-xl px-2.5 py-1.5 border-[1.5px]"
 					style={{ backgroundColor: s.bg, borderColor: s.border }}
 				>
 					<View className="w-[7px] h-[7px] shrink-0 rounded-full" style={{ backgroundColor: s.dot }} />
 					<View className="flex-1 gap-0.5">
-						<Text className="text-[9px] font-bold tracking-wide" style={{ color: s.sub }}>{slot.id}</Text>
-						<Text className="text-[13px] font-bold leading-[15px]" style={{ color: s.text }} numberOfLines={1}>
+						<Text className="text-[9px] font-bold tracking-wide" style={{ color: s.sub }}>
+							{slot.id}
+						</Text>
+						<Text
+							className="text-[13px] font-bold leading-[15px]"
+							style={{ color: s.text }}
+							numberOfLines={1}
+						>
 							{slot.dayName}
 						</Text>
 					</View>
@@ -181,7 +200,6 @@ function SlotCell({
 		</View>
 	);
 }
-
 
 const LEGEND: { key: StyleKey; label: string }[] = [
 	{ key: "past", label: "Vyzvednuto" },
@@ -389,7 +407,7 @@ export default function DeviceScreen() {
 							borderRadius: 48,
 							alignItems: "center",
 							justifyContent: "center",
-							backgroundColor: "#eab308",
+							backgroundColor: "#eab30880",
 						}}
 					>
 						<Ionicons name="bluetooth" size={40} color="#713f12" />
