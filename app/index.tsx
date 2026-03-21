@@ -40,11 +40,10 @@ function computeStatuses(
 	morningM: number,
 	eveningH: number,
 	eveningM: number,
-): { statusA: SlotStatus[]; statusB: SlotStatus[] } {
+): { statusA: SlotStatus[]; statusB: SlotStatus[]; presentEventTime: Date } {
 	const now = new Date();
 	const monday = getThisMonday();
 
-	// Seřazená sekvence 14 eventů (pondělí ráno → neděle večer)
 	const events: { col: "A" | "B"; dayIdx: number; time: Date }[] = [];
 	for (let d = 0; d < 7; d++) {
 		const base = new Date(monday);
@@ -59,7 +58,6 @@ function computeStatuses(
 		events.push({ col: "B", dayIdx: d, time: evening });
 	}
 
-	// Present = nejbližší budoucí event; pokud jsou všechny minulé → poslední
 	const upcoming = events.filter((e) => e.time >= now);
 	const presentEvent = upcoming.length > 0 ? upcoming[0] : events[events.length - 1];
 
@@ -72,6 +70,7 @@ function computeStatuses(
 	return {
 		statusA: Array.from({ length: 7 }, (_, i) => classify("A", i)),
 		statusB: Array.from({ length: 7 }, (_, i) => classify("B", i)),
+		presentEventTime: presentEvent.time,
 	};
 }
 
@@ -102,10 +101,12 @@ function SlotCell({
 	slot,
 	status,
 	onSetTaken,
+	presentEventTime,
 }: {
 	slot: Slot;
 	status: SlotStatus;
 	onSetTaken: (taken: boolean) => void;
+	presentEventTime?: Date;
 }) {
 	const isDark = useColorScheme() === "dark";
 	const key: StyleKey = status === "past" && !slot.taken ? "overdue" : status;
@@ -113,6 +114,46 @@ function SlotCell({
 	const [split, setSplit] = useState(false);
 	const canInteract = status === "past";
 	const suppressPress = useRef(false);
+	const [countdown, setCountdown] = useState("");
+
+	useEffect(() => {
+		// Zajištění, že se odpočet vyčistí, pokud už není present
+		if (status !== "present" || !presentEventTime) {
+			setCountdown("");
+			return;
+		}
+
+		const update = () => {
+			const diffMs = presentEventTime.getTime() - Date.now();
+
+			if (diffMs <= 0) {
+				setCountdown("teď");
+				return;
+			}
+
+			// Převod rovnou na celkové minuty (1 minuta = 60 000 ms)
+			const totalMin = Math.floor(diffMs / 60000);
+			const h = Math.floor(totalMin / 60);
+			const m = totalMin % 60;
+
+			if (h > 0) {
+				// Formát např. "2h 05m"
+				setCountdown(`${h}h ${String(m).padStart(2, "0")}m`);
+			} else if (m > 0) {
+				// Formát např. "15m"
+				setCountdown(`${m}m`);
+			} else {
+				// Pokud je to pod 1 minutu a ještě to není 0
+				setCountdown("< 1m");
+			}
+		};
+
+		update();
+
+		// Když neřešíme sekundy, stačí interval 10 vteřin (10000 ms)
+		const id = setInterval(update, 10000);
+		return () => clearInterval(id);
+	}, [status, presentEventTime]);
 
 	const handleLongPress = () => {
 		if (!canInteract) return;
@@ -190,11 +231,20 @@ function SlotCell({
 							{slot.dayName}
 						</Text>
 					</View>
+
 					{canInteract && (
 						<View className="absolute top-1 right-1.5">
 							<Ionicons name="ellipsis-horizontal" size={12} color={s.sub} style={{ opacity: 0.6 }} />
 						</View>
 					)}
+
+					{status === "present" && countdown ? (
+						<View className="absolute top-1 right-1.5">
+							<Text style={{ color: s.sub, fontSize: 9, fontWeight: "700", letterSpacing: 0.2 }}>
+								{countdown}
+							</Text>
+						</View>
+					) : null}
 				</Pressable>
 			)}
 		</View>
@@ -332,11 +382,13 @@ export default function DeviceScreen() {
 								<SlotCell
 									slot={slotA}
 									status={slotStatuses.statusA[i]}
+									presentEventTime={slotStatuses.presentEventTime}
 									onSetTaken={(t) => handleSetTaken("A", slotA.id, t)}
 								/>
 								<SlotCell
 									slot={slotsB[i]}
 									status={slotStatuses.statusB[i]}
+									presentEventTime={slotStatuses.presentEventTime}
 									onSetTaken={(t) => handleSetTaken("B", slotsB[i].id, t)}
 								/>
 							</View>
