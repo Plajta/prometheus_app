@@ -66,7 +66,6 @@ export default function Layout() {
 			}
 		})();
 
-		// if (Platform.OS === "android") {
 		useBleDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
 		const connSub = BleWrapperModule.addListener("onDeviceConnected", async (event) => {
@@ -77,11 +76,9 @@ export default function Layout() {
 					useBleDeviceStore.getState().setBattery(parseInt(batteryStr, 10));
 					useBleDeviceStore.getState().setLastSyncTime(new Date());
 
-					// Upload settings from DB to the board
 					const settings = getDeviceSettings();
 					if (settings) {
 						if (settings.cup_state !== null && settings.cup_state !== undefined) {
-							// Write cup state to the board – DB is the source of truth
 							await BleWrapperModule.writeCupState(settings.cup_state);
 						}
 
@@ -97,8 +94,7 @@ export default function Layout() {
 						if (settings.alarm_interval !== null) {
 							await BleWrapperModule.setAlarmInterval(settings.alarm_interval);
 						}
-						
-						// Always sync connection time
+
 						await BleWrapperModule.syncTime();
 					}
 				} catch (e) {
@@ -134,9 +130,6 @@ export default function Layout() {
 			cupSub.remove();
 			unsub();
 		};
-		// } else {
-		// 	useBleDeviceStore.getState().setIsConnected(true);
-		// }
 	}, []);
 
 	return (
@@ -144,12 +137,14 @@ export default function Layout() {
 			<SafeAreaProvider>
 				<BottomSheetModalProvider>
 					<Stack screenOptions={{ headerShown: false, animation: "none" }}>
-						<Stack.Screen name="(tabs)" />
+						<Stack.Screen name="index" />
 						<Stack.Screen
 							name="settings"
 							options={{
-								presentation: "modal",
-								animation: "slide_from_bottom",
+								animation: "slide_from_right",
+								gestureEnabled: true,
+								gestureDirection: "horizontal",
+								fullScreenGestureEnabled: true,
 							}}
 						/>
 					</Stack>

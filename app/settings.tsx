@@ -693,11 +693,11 @@ export default function SettingsScreen() {
 				contentContainerStyle={{ paddingBottom: 40 }}
 	
 			>
-				<View className="px-4 pt-2 pb-5 flex-row items-center justify-between">
-					<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Nastavení</Text>
-					<Pressable onPress={() => router.back()} className="active:opacity-60">
-						<Ionicons name="close" size={24} color={isDark ? "#71717a" : "#a1a1aa"} />
+				<View className="px-4 pt-2 pb-5 flex-row items-center gap-2">
+					<Pressable onPress={() => router.back()} className="active:opacity-60 mr-1">
+						<Ionicons name="chevron-back" size={28} color={isDark ? "#ffffff" : "#18181b"} />
 					</Pressable>
+					<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Nastavení</Text>
 				</View>
 
 				<Section title="Sdílení">
