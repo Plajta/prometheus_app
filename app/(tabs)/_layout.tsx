@@ -34,7 +34,7 @@ export default function TabsLayout() {
 					paddingBottom: Platform.OS === "ios" ? 0 : insets.bottom + 8,
 					height: Platform.OS === "ios" ? 82 : 65 + insets.bottom,
 				},
-				tabBarActiveTintColor: "#14b8a6",
+				tabBarActiveTintColor: "#eab308",
 				tabBarInactiveTintColor: isDark ? "#52525b" : "#a1a1aa",
 				tabBarLabelStyle: {
 					fontSize: 10,
@@ -52,15 +52,7 @@ export default function TabsLayout() {
 					),
 				}}
 			/>
-			<Tabs.Screen
-				name="medications"
-				options={{
-					title: "Léky",
-					tabBarIcon: ({ focused, color }) => (
-						<TabIcon name="medkit" outlineName="medkit-outline" focused={focused} color={color} />
-					),
-				}}
-			/>
+
 			<Tabs.Screen
 				name="device"
 				options={{
@@ -75,15 +67,7 @@ export default function TabsLayout() {
 					),
 				}}
 			/>
-			<Tabs.Screen
-				name="overview"
-				options={{
-					title: "Přehled",
-					tabBarIcon: ({ focused, color }) => (
-						<TabIcon name="stats-chart" outlineName="stats-chart-outline" focused={focused} color={color} />
-					),
-				}}
-			/>
+
 			<Tabs.Screen
 				name="settings"
 				options={{

@@ -58,14 +58,14 @@ const CELL_H = 58;
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
 const DARK: Record<CStatus, { bg: string; border: string; text: string; sub: string; dot: string }> = {
-	active: { bg: "#0a2420", border: "#14b8a6", text: "#ccfbf1", sub: "#2dd4bf", dot: "#14b8a6" },
+	active: { bg: "#422006", border: "#eab308", text: "#fef9c3", sub: "#facc15", dot: "#eab308" },
 	low: { bg: "#241a07", border: "#f59e0b", text: "#fef3c7", sub: "#f59e0b", dot: "#f59e0b" },
 	paused: { bg: "#141414", border: "#3f3f46", text: "#a1a1aa", sub: "#52525b", dot: "#52525b" },
 	empty: { bg: "#111113", border: "#1e1e21", text: "#3f3f46", sub: "#252528", dot: "transparent" },
 };
 
 const LIGHT: Record<CStatus, { bg: string; border: string; text: string; sub: string; dot: string }> = {
-	active: { bg: "#e6faf7", border: "#14b8a6", text: "#0d4a3f", sub: "#0d9488", dot: "#14b8a6" },
+	active: { bg: "#fefce8", border: "#eab308", text: "#713f12", sub: "#ca8a04", dot: "#eab308" },
 	low: { bg: "#fffbeb", border: "#f59e0b", text: "#713f12", sub: "#d97706", dot: "#f59e0b" },
 	paused: { bg: "#f4f4f5", border: "#d4d4d8", text: "#71717a", sub: "#a1a1aa", dot: "#a1a1aa" },
 	empty: { bg: "#f0f0f1", border: "#e4e4e7", text: "#c4c4c6", sub: "#e0e0e2", dot: "transparent" },
@@ -157,7 +157,7 @@ function ActionButton({
 }
 
 const LEGEND = [
-	{ color: "#14b8a6", label: "aktivní" },
+	{ color: "#eab308", label: "aktivní" },
 	{ color: "#f59e0b", label: "dochází" },
 	{ color: "#71717a", label: "pauza" },
 ] as const;
@@ -193,13 +193,13 @@ export default function DeviceScreen() {
 							paddingHorizontal: 12,
 							paddingVertical: 8,
 							borderRadius: 12,
-							backgroundColor: isDark ? "#0a2420" : "#e6faf7",
+							backgroundColor: isDark ? "#422006" : "#fefce8",
 							borderWidth: 1,
-							borderColor: isDark ? "#14b8a640" : "#99f6e4",
+							borderColor: isDark ? "#14b8a640" : "#fef08a",
 						}}
 					>
-						<View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: "#14b8a6" }} />
-						<Ionicons name="bluetooth" size={14} color="#14b8a6" />
+						<View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: "#eab308" }} />
+						<Ionicons name="bluetooth" size={14} color="#eab308" />
 					</View>
 				</View>
 			</View>
@@ -264,7 +264,7 @@ export default function DeviceScreen() {
 			<View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 16 }}>
 				<ActionButton
 					icon="bluetooth"
-					iconColor="#14b8a6"
+					iconColor="#eab308"
 					label="Scan"
 					onPress={async () => {
 						try {
@@ -315,6 +315,7 @@ export default function DeviceScreen() {
 							try {
 								const data = await BleWrapperModule.readAccelerometer(macAddress);
 								setAccelData(data);
+								console.log(data);
 							} catch (e) {
 								console.error(e);
 							}
