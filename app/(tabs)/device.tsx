@@ -1,5 +1,5 @@
 import { View, Text, Switch, Alert, Pressable } from "react-native";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useBleDeviceStore, Slot } from "~/store/useBleDeviceStore";
@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
 import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
-
+import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
 function SlotCell({ slot }: { slot: Slot }) {
 	const bgClass = slot.taken
 		? "bg-green-100 border-green-500 dark:bg-green-900/40 dark:border-green-500"
@@ -43,6 +43,13 @@ export default function DeviceScreen() {
 	const temperature = useBleDeviceStore((state) => state.temperature);
 	const slotsA = useBleDeviceStore((state) => state.slotsA);
 	const slotsB = useBleDeviceStore((state) => state.slotsB);
+
+	useEffect(() => {
+		const s = getDeviceSettings();
+		if (s && s.alerts_enabled !== null && s.alerts_enabled !== undefined) {
+			setAlertsEnabled(s.alerts_enabled === 1);
+		}
+	}, []);
 
 	const takenCount = [...slotsA, ...slotsB].filter((s) => s.taken).length;
 
@@ -169,6 +176,7 @@ export default function DeviceScreen() {
 								try {
 									await BleWrapperModule.setAlertsEnabled(val);
 									setAlertsEnabled(val);
+									updateDeviceSettings({ alerts_enabled: val });
 								} catch (e) {
 									console.error(e);
 								}

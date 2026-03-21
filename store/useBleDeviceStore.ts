@@ -23,7 +23,7 @@ const initialColB: Slot[] = DAYS.map((day, i) => ({
 	taken: i < 2,
 }));
 
-interface DeviceState {
+export interface DeviceState {
 	isConnected: boolean;
 	setIsConnected: (connected: boolean) => void;
 	battery: number | null;

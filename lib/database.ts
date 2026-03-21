@@ -1,75 +1,34 @@
 import * as SQLite from "expo-sqlite";
+import type { DeviceState } from "~/store/useBleDeviceStore";
 
 const SCHEMA = `
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
-CREATE TABLE IF NOT EXISTS sukl_drugs (
-    kod_sukl TEXT PRIMARY KEY,
-    nazev TEXT NOT NULL,
-    sila TEXT,
-    forma TEXT,
-    baleni TEXT,
-    baleni_pocet INTEGER,
-    cesta TEXT,
-    atc TEXT,
-    vydej TEXT,
-    zav INTEGER DEFAULT 0,
-    ll TEXT
-);
+
 CREATE TABLE IF NOT EXISTS device (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ble_id TEXT NOT NULL UNIQUE,
     name TEXT,
     battery INTEGER,
-    last_seen INTEGER,
-    compartment_count INTEGER DEFAULT 14,
     temperature_c REAL,
-    temperature_updated_at INTEGER
+    cup_state INTEGER DEFAULT 0,
+    alerts_enabled INTEGER DEFAULT 1,
+    alarm_morning_h INTEGER,
+    alarm_morning_m INTEGER,
+    alarm_evening_h INTEGER,
+    alarm_evening_m INTEGER,
+    alarm_interval INTEGER,
+    last_seen INTEGER
 );
+
 CREATE TABLE IF NOT EXISTS temperature_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     device_id INTEGER NOT NULL REFERENCES device(id),
     measured_at INTEGER NOT NULL,
     temperature_c REAL NOT NULL
 );
-CREATE TABLE IF NOT EXISTS medications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    kod_sukl TEXT REFERENCES sukl_drugs(kod_sukl),
-    custom_name TEXT,
-    tablet_count INTEGER NOT NULL,
-    tablet_total INTEGER NOT NULL,
-    compartments TEXT NOT NULL,
-    active INTEGER DEFAULT 1,
-    created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS schedules (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    medication_id INTEGER NOT NULL REFERENCES medications(id),
-    time_of_day TEXT NOT NULL,
-    days_mask INTEGER DEFAULT 127,
-    dose_count INTEGER DEFAULT 1,
-    food_relation TEXT
-);
-CREATE TABLE IF NOT EXISTS dose_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    schedule_id INTEGER NOT NULL REFERENCES schedules(id),
-    taken_at INTEGER,
-    expected_at INTEGER NOT NULL,
-    status TEXT NOT NULL,
-    device_confirmed INTEGER DEFAULT 0
-);
-CREATE TABLE IF NOT EXISTS refill_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    medication_id INTEGER NOT NULL REFERENCES medications(id),
-    refilled_at INTEGER NOT NULL,
-    count_added INTEGER NOT NULL,
-    count_before INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_dose_events_expected ON dose_events(expected_at);
-CREATE INDEX IF NOT EXISTS idx_dose_events_status ON dose_events(status);
+
 CREATE INDEX IF NOT EXISTS idx_temp_log_device ON temperature_log(device_id, measured_at);
-CREATE INDEX IF NOT EXISTS idx_schedules_medication ON schedules(medication_id);
-CREATE INDEX IF NOT EXISTS idx_medications_active ON medications(active);
 `;
 
 export const db = SQLite.openDatabaseSync("pillbox.db");
@@ -89,7 +48,7 @@ export function setupDatabase(forceWipe: boolean = false) {
 			console.log("[DB] Database wiped.");
 		} else {
 			const { count } = db.getFirstSync<{ count: number }>(
-				`SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='sukl_drugs'`,
+				`SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='device'`,
 			)!;
 			if (count > 0) {
 				console.log("[DB] Database already initialized. Skipping setup.");
@@ -114,5 +73,102 @@ export function setupDatabase(forceWipe: boolean = false) {
 	} catch (error) {
 		console.error("[DB] Setup failed:", error);
 		throw error;
+	}
+}
+
+export function saveDeviceState(state: DeviceState) {
+	try {
+		let cupState = 0;
+		state.slotsA.forEach((slot, i) => {
+			if (slot.taken) cupState |= 1 << i;
+		});
+		state.slotsB.forEach((slot, i) => {
+			if (slot.taken) cupState |= 1 << (i + 7);
+		});
+
+		db.runSync(
+			`INSERT INTO device (id, ble_id, battery, temperature_c, cup_state, last_seen)
+             VALUES (1, 'default', ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+             battery=excluded.battery,
+             temperature_c=excluded.temperature_c,
+             cup_state=excluded.cup_state,
+             last_seen=excluded.last_seen`,
+			[state.battery ?? null, state.temperature ?? null, cupState, Math.floor(Date.now() / 1000)],
+		);
+	} catch (e) {
+		console.error("[DB] saveDeviceState error:", e);
+	}
+}
+
+export function getDeviceSettings() {
+	try {
+		return db.getFirstSync<{
+			alerts_enabled: number | null;
+			alarm_morning_h: number | null;
+			alarm_morning_m: number | null;
+			alarm_evening_h: number | null;
+			alarm_evening_m: number | null;
+			alarm_interval: number | null;
+			cup_state: number | null;
+		}>(
+			`SELECT alerts_enabled, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m, alarm_interval, cup_state FROM device WHERE id=1`,
+		);
+	} catch (e) {
+		console.error("[DB] getDeviceSettings error:", e);
+		return null;
+	}
+}
+
+export function updateDeviceSettings(
+	settings: Partial<{
+		alerts_enabled: boolean;
+		alarm_morning_h: number;
+		alarm_morning_m: number;
+		alarm_evening_h: number;
+		alarm_evening_m: number;
+		alarm_interval: number;
+		cup_state: number;
+	}>,
+) {
+	try {
+		db.runSync(`INSERT OR IGNORE INTO device (id, ble_id) VALUES (1, 'default')`);
+
+		const fields = [];
+		const values = [];
+		if (settings.alerts_enabled !== undefined) {
+			fields.push("alerts_enabled=?");
+			values.push(settings.alerts_enabled ? 1 : 0);
+		}
+		if (settings.alarm_morning_h !== undefined) {
+			fields.push("alarm_morning_h=?");
+			values.push(settings.alarm_morning_h);
+		}
+		if (settings.alarm_morning_m !== undefined) {
+			fields.push("alarm_morning_m=?");
+			values.push(settings.alarm_morning_m);
+		}
+		if (settings.alarm_evening_h !== undefined) {
+			fields.push("alarm_evening_h=?");
+			values.push(settings.alarm_evening_h);
+		}
+		if (settings.alarm_evening_m !== undefined) {
+			fields.push("alarm_evening_m=?");
+			values.push(settings.alarm_evening_m);
+		}
+		if (settings.alarm_interval !== undefined) {
+			fields.push("alarm_interval=?");
+			values.push(settings.alarm_interval);
+		}
+		if (settings.cup_state !== undefined) {
+			fields.push("cup_state=?");
+			values.push(settings.cup_state);
+		}
+
+		if (fields.length === 0) return;
+		values.push(1);
+		db.runSync(`UPDATE device SET ${fields.join(", ")} WHERE id=?`, values);
+	} catch (e) {
+		console.error("[DB] updateDeviceSettings error:", e);
 	}
 }

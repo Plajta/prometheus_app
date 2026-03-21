@@ -7,7 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { setupDatabase } from "~/lib/database";
+import { setupDatabase, saveDeviceState, getDeviceSettings } from "~/lib/database";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useBleDeviceStore } from "~/store/useBleDeviceStore";
 import { PermissionsAndroid, Platform } from "react-native";
@@ -18,9 +18,19 @@ export default function Layout() {
 	useEffect(() => {
 		try {
 			setupDatabase();
+
+			// Preload store from database state before we listen.
+			const s = getDeviceSettings();
+			if (s && s.cup_state !== null && s.cup_state !== undefined) {
+				useBleDeviceStore.getState().setCupState(s.cup_state);
+			}
 		} catch (error) {
 			console.error("Database setup failed:", error);
 		}
+
+		const unsub = useBleDeviceStore.subscribe((state) => {
+			saveDeviceState(state);
+		});
 
 		registerDevice()
 			.then(({ deviceId }) => useDeviceStore.setState(() => ({ deviceId })))
@@ -58,10 +68,33 @@ export default function Layout() {
 			useBleDeviceStore.getState().setIsConnected(event.connected);
 			if (event.connected) {
 				try {
-					const stateStr = await BleWrapperModule.readCupState();
-					useBleDeviceStore.getState().setCupState(parseInt(stateStr, 10));
 					const batteryStr = await BleWrapperModule.readBattery();
 					useBleDeviceStore.getState().setBattery(parseInt(batteryStr, 10));
+
+					// Upload settings from DB to the board
+					const settings = getDeviceSettings();
+					if (settings) {
+						if (settings.cup_state !== null && settings.cup_state !== undefined) {
+							// Write cup state to the board – DB is the source of truth
+							await BleWrapperModule.writeCupState(settings.cup_state);
+						}
+
+						if (settings.alerts_enabled !== null) {
+							await BleWrapperModule.setAlertsEnabled(settings.alerts_enabled === 1);
+						}
+						if (settings.alarm_morning_h !== null && settings.alarm_morning_m !== null) {
+							await BleWrapperModule.setAlarmMorning(settings.alarm_morning_h, settings.alarm_morning_m);
+						}
+						if (settings.alarm_evening_h !== null && settings.alarm_evening_m !== null) {
+							await BleWrapperModule.setAlarmEvening(settings.alarm_evening_h, settings.alarm_evening_m);
+						}
+						if (settings.alarm_interval !== null) {
+							await BleWrapperModule.setAlarmInterval(settings.alarm_interval);
+						}
+						
+						// Always sync connection time
+						await BleWrapperModule.syncTime();
+					}
 				} catch (e) {
 					console.error("Failed to read initial state on connect:", e);
 				}
@@ -90,6 +123,7 @@ export default function Layout() {
 			tempSub.remove();
 			batterySub.remove();
 			cupSub.remove();
+			unsub();
 		};
 		// } else {
 		// 	useBleDeviceStore.getState().setIsConnected(true);

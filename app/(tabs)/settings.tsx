@@ -2,12 +2,14 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Switch, useColorScheme, useWindowDimensions, Alert } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { getWatching, addFamilyRelation, deleteFamilyRelation, type FamilyRelation } from "~/lib/notifications";
+import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
@@ -131,17 +133,37 @@ function AlarmsSheet({ onClose }: { onClose: () => void }) {
 	const [escalation, setEscalation] = useState("15");
 	const [loading, setLoading] = useState(false);
 
+	useEffect(() => {
+		const s = getDeviceSettings();
+		if (s) {
+			if (s.alarm_morning_h !== null && s.alarm_morning_m !== null)
+				setMorning(`${String(s.alarm_morning_h).padStart(2, "0")}:${String(s.alarm_morning_m).padStart(2, "0")}`);
+			if (s.alarm_evening_h !== null && s.alarm_evening_m !== null)
+				setEvening(`${String(s.alarm_evening_h).padStart(2, "0")}:${String(s.alarm_evening_m).padStart(2, "0")}`);
+			if (s.alarm_interval !== null) setEscalation(String(Math.floor(s.alarm_interval / 60)));
+		}
+	}, []);
+
 	const handleSave = async () => {
 		setLoading(true);
 		try {
 			const [mH, mM] = morning.split(":").map(Number);
-			if (!isNaN(mH) && !isNaN(mM)) await BleWrapperModule.setAlarmMorning(mH, mM);
+			if (!isNaN(mH) && !isNaN(mM)) {
+				await BleWrapperModule.setAlarmMorning(mH, mM);
+				updateDeviceSettings({ alarm_morning_h: mH, alarm_morning_m: mM });
+			}
 
 			const [eH, eM] = evening.split(":").map(Number);
-			if (!isNaN(eH) && !isNaN(eM)) await BleWrapperModule.setAlarmEvening(eH, eM);
+			if (!isNaN(eH) && !isNaN(eM)) {
+				await BleWrapperModule.setAlarmEvening(eH, eM);
+				updateDeviceSettings({ alarm_evening_h: eH, alarm_evening_m: eM });
+			}
 
 			const esc = Number(escalation);
-			if (!isNaN(esc)) await BleWrapperModule.setAlarmInterval(esc * 60);
+			if (!isNaN(esc)) {
+				await BleWrapperModule.setAlarmInterval(esc * 60);
+				updateDeviceSettings({ alarm_interval: esc * 60 });
+			}
 
 			Alert.alert("Úspěch", "Časy upozornění byly uloženy do lékovky.");
 			onClose();
@@ -243,6 +265,9 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 	const isDark = useColorScheme() === "dark";
 	const { deviceId } = useDeviceStore();
 	const { height } = useWindowDimensions();
+	const insets = useSafeAreaInsets();
+	// Android: přidáme spodní safe area kvůli navigačním tlačítkům
+	const bottomPad = Platform.OS === "android" ? Math.max(insets.bottom, 16) : 24;
 	// 70 % výška sheetu − hlavička − popis − padding
 	const cameraHeight = Math.round(height * 0.7 - 140);
 
@@ -313,7 +338,7 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 	// Kamera + QR skener
 	if (view === "camera") {
 		return (
-			<View className="flex-1 pt-2 pb-6 gap-4">
+			<View className="flex-1 pt-2 gap-4" style={{ paddingBottom: bottomPad }}>
 				<View className="flex-row items-center justify-between px-1">
 					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
 						Přidat příbuzného
@@ -355,7 +380,7 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 	// Jméno po naskenování
 	if (view === "nameInput") {
 		return (
-			<View className="flex-1 pt-2 pb-6 gap-5">
+			<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
 				<View className="flex-row items-center justify-between px-1">
 					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
 						Přidat příbuzného
@@ -416,7 +441,7 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 
 	// Seznam (výchozí view)
 	return (
-		<View className="flex-1 pt-2 pb-6 gap-4">
+		<View className="flex-1 pt-2 gap-4" style={{ paddingBottom: bottomPad }}>
 			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">Příbuzní</Text>
 
 			<View className="flex-1">
@@ -483,28 +508,6 @@ export default function SettingsScreen() {
 	const alarmsSheetRef = useRef<BottomSheetModal>(null);
 	const snapPoints = useMemo(() => ["70%"], []);
 
-	// Blokuje dotyk na obsahu za sheetem po celou dobu, co je sheet otevřený nebo se zavírá.
-	// onChange(-1) = sheet se začal zavírat; pointerEvents se re-enableují až po doběhnutí animace.
-	const [sheetBlocking, setSheetBlocking] = useState(false);
-	const blockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	const onSheetChange = useCallback((index: number) => {
-		if (blockTimerRef.current) clearTimeout(blockTimerRef.current);
-		if (index >= 0) {
-			setSheetBlocking(true);
-		} else {
-			// -1 = sheet se zavírá; počkáme na doběhnutí spring animace (~320 ms)
-			blockTimerRef.current = setTimeout(() => setSheetBlocking(false), 350);
-		}
-	}, []);
-
-	const presentSheet = useCallback(
-		(ref: React.RefObject<BottomSheetModal | null>) => {
-			if (sheetBlocking) return;
-			ref.current?.present();
-		},
-		[sheetBlocking],
-	);
 
 	// ── Relations state žije zde, ne uvnitř FamilySheet ─────────────────────
 	const { deviceId } = useDeviceStore();
@@ -529,6 +532,7 @@ export default function SettingsScreen() {
 		backdropComponent: renderBackdrop,
 		backgroundStyle: { backgroundColor: isDark ? "#18181b" : "#ffffff" },
 		handleIndicatorStyle: { backgroundColor: isDark ? "#52525b" : "#d4d4d8" },
+		animationConfigs: { duration: 280 },
 	} as const;
 
 	return (
@@ -537,7 +541,7 @@ export default function SettingsScreen() {
 			<ScrollView
 				showsVerticalScrollIndicator={false}
 				contentContainerStyle={{ paddingBottom: 40 }}
-				pointerEvents={sheetBlocking ? "none" : "auto"}
+	
 			>
 				<View className="px-4 pt-2 pb-5">
 					<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Nastavení</Text>
@@ -550,7 +554,7 @@ export default function SettingsScreen() {
 						iconColor="#059669"
 						label="Správa příbuzných"
 						chevron
-						onPress={() => presentSheet(familySheetRef)}
+						onPress={() => familySheetRef.current?.present()}
 					/>
 					<Divider />
 					<SettingRow
@@ -559,7 +563,7 @@ export default function SettingsScreen() {
 						iconColor="#2563eb"
 						label="Sdílet notifikace příbuzným"
 						chevron
-						onPress={() => presentSheet(caregiverSheetRef)}
+						onPress={() => caregiverSheetRef.current?.present()}
 					/>
 				</Section>
 
@@ -571,7 +575,7 @@ export default function SettingsScreen() {
 						label="Čas připomenutí"
 						value="z plánu"
 						chevron
-						onPress={() => presentSheet(alarmsSheetRef)}
+						onPress={() => alarmsSheetRef.current?.present()}
 					/>
 					<Divider />
 					<SettingRow
@@ -581,7 +585,7 @@ export default function SettingsScreen() {
 						label="Eskalace po"
 						value="15 min"
 						chevron
-						onPress={() => presentSheet(alarmsSheetRef)}
+						onPress={() => alarmsSheetRef.current?.present()}
 					/>
 				</Section>
 
@@ -619,14 +623,14 @@ export default function SettingsScreen() {
 			</ScrollView>
 
 			{/* Notifikace příbuzným sheet */}
-			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps} onChange={onSheetChange}>
+			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 px-6 py-2">
 					<CaregiverNotifSheet enabled={caregiverNotif} onToggle={setCaregiverNotif} />
 				</BottomSheetView>
 			</BottomSheetModal>
 
 			{/* Správa příbuzných sheet */}
-			<BottomSheetModal ref={familySheetRef} {...sheetProps} onChange={onSheetChange}>
+			<BottomSheetModal ref={familySheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<FamilySheet
 						relations={relations}
@@ -637,7 +641,7 @@ export default function SettingsScreen() {
 			</BottomSheetModal>
 
 			{/* Časy upozornění sheet */}
-			<BottomSheetModal ref={alarmsSheetRef} {...sheetProps} onChange={onSheetChange}>
+			<BottomSheetModal ref={alarmsSheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<AlarmsSheet onClose={() => alarmsSheetRef.current?.dismiss()} />
 				</BottomSheetView>
