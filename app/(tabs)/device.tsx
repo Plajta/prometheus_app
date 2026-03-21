@@ -1,4 +1,15 @@
-import { View, Text, Dimensions, useColorScheme, ScrollView } from "react-native";
+import {
+	View,
+	Text,
+	Dimensions,
+	useColorScheme,
+	ScrollView,
+	TouchableOpacity,
+	PermissionsAndroid,
+	Platform,
+} from "react-native";
+import { useState } from "react";
+import BleWrapperModule from "../../modules/ble-wrapper/src/BleWrapperModule";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
@@ -107,21 +118,23 @@ function SlotCell({ slot, isDark }: { slot: Slot; isDark: boolean }) {
 	);
 }
 
-function StatPill({
+function ActionButton({
 	icon,
 	iconColor,
 	label,
-	value,
+	onPress,
 	isDark,
 }: {
 	icon: React.ComponentProps<typeof Ionicons>["name"];
 	iconColor: string;
 	label: string;
-	value: string;
+	onPress: () => void;
 	isDark: boolean;
 }) {
 	return (
-		<View
+		<TouchableOpacity
+			onPress={onPress}
+			activeOpacity={0.7}
 			style={{
 				flex: 1,
 				backgroundColor: isDark ? "#18181b" : "#f4f4f5",
@@ -134,9 +147,12 @@ function StatPill({
 			}}
 		>
 			<Ionicons name={icon} size={20} color={iconColor} />
-			<Text style={{ color: isDark ? "#ffffff" : "#18181b", fontSize: 16, fontWeight: "700" }}>{value}</Text>
-			<Text style={{ color: "#71717a", fontSize: 11, textAlign: "center" }}>{label}</Text>
-		</View>
+			<Text
+				style={{ color: isDark ? "#ffffff" : "#18181b", fontSize: 12, fontWeight: "600", textAlign: "center" }}
+			>
+				{label}
+			</Text>
+		</TouchableOpacity>
 	);
 }
 
@@ -150,6 +166,9 @@ const filledCount = [...COL_A, ...COL_B].filter((s) => s.status !== "empty").len
 
 export default function DeviceScreen() {
 	const isDark = useColorScheme() === "dark";
+	const [macAddress, setMacAddress] = useState<string | null>(null);
+	const [accelData, setAccelData] = useState<string | null>(null);
+	const [ledOn, setLedOn] = useState(false);
 
 	const deviceBg = isDark ? "#141417" : "#f4f4f5";
 	const deviceBorder = isDark ? "#2e2e33" : "#d4d4d8";
@@ -243,9 +262,91 @@ export default function DeviceScreen() {
 			</View>
 
 			<View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 16 }}>
-				<StatPill icon="battery-half" iconColor="#4ade80" label="Baterie" value="78 %" isDark={isDark} />
-				<StatPill icon="thermometer" iconColor="#14b8a6" label="Teplota" value="21.3 °C" isDark={isDark} />
-				<StatPill icon="sync" iconColor="#a78bfa" label="Sync" value="08:42" isDark={isDark} />
+				<ActionButton
+					icon="bluetooth"
+					iconColor="#14b8a6"
+					label="Scan"
+					onPress={async () => {
+						try {
+							if (Platform.OS === "android") {
+								const granted = await PermissionsAndroid.requestMultiple([
+									PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+									PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+									PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+								]);
+
+								if (
+									granted["android.permission.BLUETOOTH_SCAN"] !== "granted" ||
+									granted["android.permission.BLUETOOTH_CONNECT"] !== "granted" ||
+									granted["android.permission.ACCESS_FINE_LOCATION"] !== "granted"
+								) {
+									console.error("Bluetooth permissions denied");
+									return;
+								}
+							}
+
+							const addr = await BleWrapperModule.scanForXiao();
+							setMacAddress(addr);
+						} catch (e) {
+							console.error(e);
+						}
+					}}
+					isDark={isDark}
+				/>
+				<ActionButton
+					icon="stop-circle"
+					iconColor="#f43f5e"
+					label="Stop"
+					onPress={async () => {
+						try {
+							await BleWrapperModule.stopScan();
+						} catch (e) {
+							console.error(e);
+						}
+					}}
+					isDark={isDark}
+				/>
+				<ActionButton
+					icon="speedometer"
+					iconColor="#3b82f6"
+					label="Accel"
+					onPress={async () => {
+						if (macAddress) {
+							try {
+								const data = await BleWrapperModule.readAccelerometer(macAddress);
+								setAccelData(data);
+							} catch (e) {
+								console.error(e);
+							}
+						}
+					}}
+					isDark={isDark}
+				/>
+				<ActionButton
+					icon="bulb"
+					iconColor={ledOn ? "#eab308" : "#71717a"}
+					label="LED"
+					onPress={async () => {
+						if (macAddress) {
+							try {
+								await BleWrapperModule.setLed(macAddress, !ledOn);
+								setLedOn(!ledOn);
+							} catch (e) {
+								console.error(e);
+							}
+						}
+					}}
+					isDark={isDark}
+				/>
+			</View>
+
+			<View style={{ paddingHorizontal: 16, marginTop: 16, marginBottom: 20 }}>
+				<Text style={{ color: textPrimary, fontSize: 13, marginBottom: 4 }}>
+					<Text style={{ fontWeight: "700" }}>MAC:</Text> {macAddress || "—"}
+				</Text>
+				<Text style={{ color: textPrimary, fontSize: 13 }}>
+					<Text style={{ fontWeight: "700" }}>Accel:</Text> {accelData || "—"}
+				</Text>
 			</View>
 		</SafeAreaView>
 	);

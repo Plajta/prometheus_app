@@ -1,39 +1,51 @@
 {
-  "expo": {
-    "name": "prometheus_app",
-    "slug": "prometheus_app",
-    "version": "1.0.0",
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "experiments": {
-      "tsconfigPaths": true
-    },
-    "plugins": [
-      "expo-sqlite",
-      "expo-router"
-    ],
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-   				"assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.plajta.prometheus-app",
-      "appleTeamId": "56ZRVZU3WX"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    }
-  }
+	"expo": {
+		"name": "prometheus_app",
+		"slug": "prometheus_app",
+		"version": "1.0.0",
+		"web": {
+			"favicon": "./assets/favicon.png"
+		},
+		"experiments": {
+			"tsconfigPaths": true
+		},
+		"plugins": [
+			"expo-sqlite",
+			"expo-router",
+			[
+				"expo-build-properties",
+				{
+					"android": {
+						"usesCleartextTraffic": true
+					}
+				}
+			]
+		],
+		"orientation": "portrait",
+		"icon": "./assets/icon.png",
+		"userInterfaceStyle": "light",
+		"splash": {
+			"image": "./assets/splash.png",
+			"resizeMode": "contain",
+			"backgroundColor": "#ffffff"
+		},
+		"assetBundlePatterns": ["**/*"],
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.plajta.prometheus-app",
+			"appleTeamId": "56ZRVZU3WX"
+		},
+		"android": {
+			"adaptiveIcon": {
+				"foregroundImage": "./assets/adaptive-icon.png",
+				"backgroundColor": "#ffffff"
+			},
+			"package": "com.plajta.prometheusapp",
+			"permissions": [
+				"android.permission.BLUETOOTH_SCAN",
+				"android.permission.BLUETOOTH_CONNECT",
+				"android.permission.ACCESS_FINE_LOCATION"
+			]
+		}
+	}
 }

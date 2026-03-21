@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform, useColorScheme } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -20,6 +21,7 @@ function TabIcon({
 
 export default function TabsLayout() {
 	const isDark = useColorScheme() === "dark";
+	const insets = useSafeAreaInsets();
 
 	return (
 		<Tabs
@@ -29,8 +31,8 @@ export default function TabsLayout() {
 					backgroundColor: isDark ? "#18181b" : "#ffffff",
 					borderTopColor: isDark ? "#27272a" : "#e4e4e7",
 					borderTopWidth: 1,
-					paddingBottom: Platform.OS === "ios" ? 0 : 8,
-					height: Platform.OS === "ios" ? 82 : 65,
+					paddingBottom: Platform.OS === "ios" ? 0 : insets.bottom + 8,
+					height: Platform.OS === "ios" ? 82 : 65 + insets.bottom,
 				},
 				tabBarActiveTintColor: "#14b8a6",
 				tabBarInactiveTintColor: isDark ? "#52525b" : "#a1a1aa",
@@ -46,12 +48,7 @@ export default function TabsLayout() {
 				options={{
 					title: "Dnes",
 					tabBarIcon: ({ focused, color }) => (
-						<TabIcon
-							name="calendar"
-							outlineName="calendar-outline"
-							focused={focused}
-							color={color}
-						/>
+						<TabIcon name="calendar" outlineName="calendar-outline" focused={focused} color={color} />
 					),
 				}}
 			/>
@@ -60,12 +57,7 @@ export default function TabsLayout() {
 				options={{
 					title: "Léky",
 					tabBarIcon: ({ focused, color }) => (
-						<TabIcon
-							name="medkit"
-							outlineName="medkit-outline"
-							focused={focused}
-							color={color}
-						/>
+						<TabIcon name="medkit" outlineName="medkit-outline" focused={focused} color={color} />
 					),
 				}}
 			/>
@@ -88,12 +80,7 @@ export default function TabsLayout() {
 				options={{
 					title: "Přehled",
 					tabBarIcon: ({ focused, color }) => (
-						<TabIcon
-							name="stats-chart"
-							outlineName="stats-chart-outline"
-							focused={focused}
-							color={color}
-						/>
+						<TabIcon name="stats-chart" outlineName="stats-chart-outline" focused={focused} color={color} />
 					),
 				}}
 			/>
@@ -102,12 +89,7 @@ export default function TabsLayout() {
 				options={{
 					title: "Nastavení",
 					tabBarIcon: ({ focused, color }) => (
-						<TabIcon
-							name="settings"
-							outlineName="settings-outline"
-							focused={focused}
-							color={color}
-						/>
+						<TabIcon name="settings" outlineName="settings-outline" focused={focused} color={color} />
 					),
 				}}
 			/>
