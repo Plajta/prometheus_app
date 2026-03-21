@@ -8,7 +8,6 @@ class BleWrapperModule : Module() {
 
     private val nrfManager by lazy {
         NrfBleManager(appContext.reactContext!!).also { manager ->
-            // Wire up event listeners that push data to JavaScript
             manager.onAccelData = { value ->
                 sendEvent("onAccelData", mapOf("value" to value))
             }
@@ -24,32 +23,11 @@ class BleWrapperModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("BleWrapper")
 
-        // Events that can be listened to from JS
         Events("onAccelData", "onDeviceConnected", "onDeviceDisconnected")
 
-        // Scan for XIAO_Sense_Accel, returns MAC address
-        AsyncFunction("scanForXiao") { promise: Promise ->
-            nrfManager.scanForDevice(
-                onFound = { address ->
-                    promise.resolve(address)
-                },
-                onScanError = { error ->
-                    promise.reject("SCAN_ERROR", error, null)
-                }
-            )
-        }
-
-        // Stop any active BLE scan
-        AsyncFunction("stopScan") { promise: Promise ->
-            nrfManager.stopScan()
-            promise.resolve(null)
-        }
-
-        // Connect to device and stay connected (persistent session)
-        // Automatically subscribes to accelerometer notifications
-        AsyncFunction("connect") { address: String, promise: Promise ->
-            nrfManager.connect(
-                address = address,
+        // Auto-scan + auto-connect in one call
+        AsyncFunction("connectToXiao") { promise: Promise ->
+            nrfManager.connectToXiao(
                 onResult = { success ->
                     if (success) {
                         promise.resolve(null)
@@ -69,8 +47,7 @@ class BleWrapperModule : Module() {
             promise.resolve(null)
         }
 
-        // One-shot read of accelerometer (returns "X,Y,Z" string)
-        // Device must already be connected via connect()
+        // One-shot read of accelerometer (must be connected)
         AsyncFunction("readAccelerometer") { promise: Promise ->
             nrfManager.readAccelerometer(
                 onResult = { value ->
@@ -82,7 +59,7 @@ class BleWrapperModule : Module() {
             )
         }
 
-        // Turn green LED on/off. Device must already be connected.
+        // Turn green LED on/off (must be connected)
         AsyncFunction("setLed") { on: Boolean, promise: Promise ->
             nrfManager.writeLed(
                 on = on,
@@ -95,7 +72,7 @@ class BleWrapperModule : Module() {
             )
         }
 
-        // Check if currently connected
+        // Check connection state (synchronous)
         Function("isConnected") {
             nrfManager.isConnected
         }

@@ -5,6 +5,8 @@ import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import java.util.*
 
@@ -40,6 +42,11 @@ class NrfBleManager(private val context: Context) {
     // Command queue for sequential GATT operations
     private val commandQueue: Queue<BleCommand> = LinkedList()
     private var isCommandInProgress = false
+
+    // Auto-reconnect
+    private var shouldAutoReconnect = false
+    private val reconnectHandler = Handler(Looper.getMainLooper())
+    private val RECONNECT_DELAY_MS = 3000L
 
     // Event listeners set by the Module
     var onAccelData: ((String) -> Unit)? = null
@@ -88,6 +95,24 @@ class NrfBleManager(private val context: Context) {
                 closeGatt()
                 // Emit disconnect event to JS
                 onDeviceDisconnected?.invoke()
+
+                // Auto-reconnect: schedule a re-scan after a short delay
+                if (shouldAutoReconnect) {
+                    Log.i(TAG, "Auto-reconnect: will re-scan in ${RECONNECT_DELAY_MS}ms...")
+                    reconnectHandler.postDelayed({
+                        if (shouldAutoReconnect) {
+                            Log.i(TAG, "Auto-reconnect: starting scan...")
+                            connectToXiao(
+                                onResult = { success ->
+                                    if (success) Log.i(TAG, "Auto-reconnect: connected!")
+                                },
+                                onFail = { error ->
+                                    Log.e(TAG, "Auto-reconnect failed: $error")
+                                }
+                            )
+                        }
+                    }, RECONNECT_DELAY_MS)
+                }
             }
         }
 
@@ -183,26 +208,33 @@ class NrfBleManager(private val context: Context) {
     // ─── Public API ─────────────────────────────────────────────────
 
     /**
-     * Scan for XIAO_Sense_Accel device.
-     * Returns device MAC address via onFound callback.
+     * Automatically scan for XIAO_Sense_Accel, connect, and stay connected.
+     * This is the single entry point — no manual scan or address needed.
      */
     @SuppressLint("MissingPermission")
-    fun scanForDevice(
-        onFound: (address: String) -> Unit,
-        onScanError: (String) -> Unit
+    fun connectToXiao(
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
     ) {
+        // Enable auto-reconnect from now on
+        shouldAutoReconnect = true
+
         val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val adapter = bluetoothManager.adapter
         if (adapter == null || !adapter.isEnabled) {
-            onScanError("Bluetooth is not enabled")
+            onFail("Bluetooth is not enabled")
             return
         }
 
         bleScanner = adapter.bluetoothLeScanner
         if (bleScanner == null) {
-            onScanError("BLE Scanner not available")
+            onFail("BLE Scanner not available")
             return
         }
+
+        // Store callbacks for later use during connection
+        onConnectResult = onResult
+        onError = onFail
 
         scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -215,15 +247,22 @@ class NrfBleManager(private val context: Context) {
                 }
 
                 if (name == "XIAO_Sense_Accel") {
-                    Log.i(TAG, "Found XIAO device: ${result.device.address}")
+                    Log.i(TAG, "Found XIAO device: ${result.device.address}, connecting...")
                     stopScan()
-                    onFound(result.device.address)
+
+                    // Immediately connect to the found device
+                    synchronized(this@NrfBleManager) {
+                        commandQueue.clear()
+                        isCommandInProgress = false
+                    }
+                    closeGatt()
+                    bluetoothGatt = result.device.connectGatt(context, false, gattCallback)
                 }
             }
 
             override fun onScanFailed(errorCode: Int) {
                 Log.e(TAG, "Scan failed with error: $errorCode")
-                onScanError("Scan failed with error $errorCode")
+                onFail("Scan failed with error $errorCode")
             }
         }
 
@@ -232,11 +271,11 @@ class NrfBleManager(private val context: Context) {
             .build()
 
         bleScanner?.startScan(null, settings, scanCallback)
-        Log.i(TAG, "BLE scan started")
+        Log.i(TAG, "BLE scan started, looking for XIAO_Sense_Accel...")
     }
 
     @SuppressLint("MissingPermission")
-    fun stopScan() {
+    private fun stopScan() {
         scanCallback?.let {
             bleScanner?.stopScan(it)
             scanCallback = null
@@ -245,48 +284,16 @@ class NrfBleManager(private val context: Context) {
     }
 
     /**
-     * Connect to XIAO and stay connected.
-     * After connection + service discovery, automatically subscribes to accel notifications.
-     */
-    @SuppressLint("MissingPermission")
-    fun connect(
-        address: String,
-        onResult: (Boolean) -> Unit,
-        onFail: (String) -> Unit
-    ) {
-        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val adapter = bluetoothManager.adapter
-        if (adapter == null || !adapter.isEnabled) {
-            onFail("Bluetooth is not enabled")
-            return
-        }
-
-        val device = adapter.getRemoteDevice(address)
-        if (device == null) {
-            onFail("Device not found: $address")
-            return
-        }
-
-        synchronized(this) {
-            commandQueue.clear()
-            isCommandInProgress = false
-        }
-        closeGatt()
-
-        onConnectResult = onResult
-        onError = onFail
-
-        Log.d(TAG, "Connecting to $address (persistent)...")
-        bluetoothGatt = device.connectGatt(context, false, gattCallback)
-    }
-
-    /**
      * Disconnect from the device gracefully.
+     * Disables auto-reconnect.
      */
     @SuppressLint("MissingPermission")
     fun disconnect() {
+        shouldAutoReconnect = false
+        reconnectHandler.removeCallbacksAndMessages(null)
+        stopScan()
         bluetoothGatt?.let { gatt ->
-            Log.d(TAG, "Disconnecting...")
+            Log.d(TAG, "Disconnecting (manual, no auto-reconnect)...")
             gatt.disconnect()
         }
     }

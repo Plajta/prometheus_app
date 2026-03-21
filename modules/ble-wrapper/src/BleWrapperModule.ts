@@ -3,13 +3,9 @@ import { NativeModule, requireNativeModule } from 'expo';
 import { BleWrapperModuleEvents } from './BleWrapper.types';
 
 declare class BleWrapperModule extends NativeModule<BleWrapperModuleEvents> {
-  /** Scan for XIAO_Sense_Accel device. Returns its MAC address. */
-  scanForXiao(): Promise<string>;
-  /** Stop any active BLE scan. */
-  stopScan(): Promise<void>;
-  /** Connect to device and stay connected. Subscribes to accel notifications. */
-  connect(address: string): Promise<void>;
-  /** Gracefully disconnect from connected device. */
+  /** Auto-scan for XIAO and connect. Single call, no address needed. */
+  connectToXiao(): Promise<void>;
+  /** Gracefully disconnect. */
   disconnect(): Promise<void>;
   /** One-shot read of accelerometer. Returns "X,Y,Z". Must be connected. */
   readAccelerometer(): Promise<string>;
