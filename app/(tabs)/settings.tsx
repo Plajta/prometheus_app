@@ -5,14 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { useDeviceStore } from "~/store/useDeviceStore";
-import {
-	getWatching,
-	addFamilyRelation,
-	deleteFamilyRelation,
-	type FamilyRelation,
-} from "~/lib/notifications";
+import { getWatching, addFamilyRelation, deleteFamilyRelation, type FamilyRelation } from "~/lib/notifications";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -128,7 +123,7 @@ function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle
 
 // ─── Family sheet ─────────────────────────────────────────────────────────────
 
-type FamilyView = "list" | "camera" | "confirm";
+type FamilyView = "list" | "camera" | "nameInput";
 
 /** Zkrátí device_id na čitelný tvar: prvních 8 znaků velkými písmeny. */
 function shortId(id: string) {
@@ -146,6 +141,7 @@ function FamilySheet() {
 	const [relations, setRelations] = useState<FamilyRelation[]>([]);
 	/** device_id naskenovaného příbuzného */
 	const [scannedDeviceId, setScannedDeviceId] = useState("");
+	const [newName, setNewName] = useState("");
 	const [loading, setLoading] = useState(false);
 	const scannedRef = useRef(false);
 
@@ -174,26 +170,29 @@ function FamilySheet() {
 		if (scannedRef.current) return;
 		scannedRef.current = true;
 		setScannedDeviceId(data);
-		setView("confirm");
+		setNewName("");
+		setView("nameInput");
 	};
 
 	// ── Add relation ──────────────────────────────────────────────────────────
 
 	const handleAdd = async () => {
-		if (!deviceId || !scannedDeviceId) return;
+		if (!deviceId || !scannedDeviceId || !newName.trim()) return;
 		setLoading(true);
 		try {
 			// Já (watcher) sleduji naskenovaného (watched)
-			const { id } = await addFamilyRelation(deviceId, scannedDeviceId);
+			const { id } = await addFamilyRelation(deviceId, scannedDeviceId, newName.trim());
 			const newRelation: FamilyRelation = {
 				id,
 				watcher_device_id: deviceId,
 				watched_device_id: scannedDeviceId,
+				name: newName.trim(),
 				created_at: new Date().toISOString(),
 			};
 			setRelations((prev) => (Array.isArray(prev) ? prev : []).concat(newRelation));
 			setView("list");
 			setScannedDeviceId("");
+			setNewName("");
 		} catch {
 			// server error — uživatel může zkusit znovu
 		} finally {
@@ -204,9 +203,7 @@ function FamilySheet() {
 	const handleDelete = async (relation: FamilyRelation) => {
 		try {
 			await deleteFamilyRelation(relation.id);
-			setRelations((prev) =>
-				(Array.isArray(prev) ? prev : []).filter((r) => r.id !== relation.id),
-			);
+			setRelations((prev) => (Array.isArray(prev) ? prev : []).filter((r) => r.id !== relation.id));
 		} catch {}
 	};
 
@@ -254,51 +251,61 @@ function FamilySheet() {
 		);
 	}
 
-	// Potvrzení po scanu — žádný name field, jen device_id
-	if (view === "confirm") {
+	// Jméno po naskenování
+	if (view === "nameInput") {
 		return (
 			<View className="flex-1 pt-2 pb-6 gap-5">
 				<View className="flex-row items-center justify-between px-1">
 					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
-						Potvrdit přidání
+						Přidat příbuzného
 					</Text>
 					<Pressable onPress={() => setView("list")} className="active:opacity-60">
 						<Ionicons name="close" size={22} color="#71717a" />
 					</Pressable>
 				</View>
 
-				<View className="flex-1 items-center justify-center gap-6 px-1">
-					<View className="w-20 h-20 rounded-full bg-emerald-500/15 items-center justify-center">
-						<Ionicons name="checkmark-circle" size={40} color="#10b981" />
-					</View>
-
+				<View className="flex-1 justify-center gap-6 px-1">
+					{/* Potvrzení scanu */}
 					<View className="items-center gap-2">
-						<Text className="text-zinc-900 dark:text-white text-[17px] font-semibold">
+						<View className="w-14 h-14 rounded-full bg-emerald-500/15 items-center justify-center">
+							<Ionicons name="checkmark-circle" size={28} color="#10b981" />
+						</View>
+						<Text className="text-zinc-900 dark:text-white text-[15px] font-semibold">
 							QR kód naskenován
 						</Text>
-						{/* Zobrazíme zkrácené device_id */}
-						<View
-							className="px-4 py-2 rounded-xl"
-							style={{ backgroundColor: isDark ? "#27272a" : "#f4f4f5" }}
-						>
-							<Text className="text-zinc-500 text-[12px] font-mono tracking-widest">
-								{shortId(scannedDeviceId)}
-							</Text>
-						</View>
 					</View>
 
-					<Text className="text-zinc-500 text-[13px] text-center leading-5 px-6">
-						Budete dostávat upozornění, pokud tento příbuzný zapomene vzít léky.
-					</Text>
+					{/* Jméno */}
+					<View className="gap-2">
+						<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+							Jméno příbuzného
+						</Text>
+						<BottomSheetTextInput
+							value={newName}
+							onChangeText={setNewName}
+							placeholder="např. Maminka"
+							placeholderTextColor="#71717a"
+							autoFocus
+							className="text-zinc-900 dark:text-white text-[16px] px-4 py-3.5 rounded-2xl"
+							style={{
+								backgroundColor: isDark ? "#27272a" : "#f4f4f5",
+								borderWidth: 1,
+								borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+							}}
+						/>
+					</View>
 				</View>
 
 				<Pressable
 					onPress={handleAdd}
-					disabled={loading}
+					disabled={!newName.trim() || loading}
 					className="rounded-2xl py-4 items-center active:opacity-80"
-					style={{ backgroundColor: "#2563eb" }}
+					style={{ backgroundColor: newName.trim() ? "#2563eb" : isDark ? "#27272a" : "#e4e4e7" }}
 				>
-					<Text className="text-white font-semibold text-[15px]">
+					<Text
+						className="font-semibold text-[15px]"
+						style={{ color: newName.trim() ? "#ffffff" : "#71717a" }}
+					>
 						{loading ? "Přidávám…" : "Přidat příbuzného"}
 					</Text>
 				</Pressable>
@@ -309,9 +316,7 @@ function FamilySheet() {
 	// Seznam (výchozí view)
 	return (
 		<View className="flex-1 pt-2 pb-6 gap-4">
-			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">
-				Příbuzní
-			</Text>
+			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">Příbuzní</Text>
 
 			<View className="flex-1">
 				{relations.length === 0 ? (
@@ -331,19 +336,16 @@ function FamilySheet() {
 						data={relations}
 						keyExtractor={(r) => r.id}
 						scrollEnabled={false}
-						ItemSeparatorComponent={() => (
-							<View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-1" />
-						)}
+						ItemSeparatorComponent={() => <View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-1" />}
 						renderItem={({ item }) => (
 							<View className="flex-row items-center gap-3 py-3 px-1">
 								<View className="w-10 h-10 rounded-full bg-blue-500/15 items-center justify-center">
 									<Ionicons name="person" size={18} color="#3b82f6" />
 								</View>
 								<View className="flex-1 gap-0.5">
-									<Text className="text-zinc-900 dark:text-white text-[15px] font-medium font-mono tracking-wide">
-										{shortId(item.watched_device_id)}
+									<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
+										{item.name}
 									</Text>
-									<Text className="text-zinc-500 text-[11px]">Notifikace aktivní</Text>
 								</View>
 								<Pressable
 									onPress={() => handleDelete(item)}

@@ -20,6 +20,7 @@ export interface FamilyRelation {
 	id: string;
 	watcher_device_id: string;
 	watched_device_id: string;
+	name: string;
 	created_at?: string;
 }
 
@@ -131,17 +132,19 @@ export async function getWatching(watcherDeviceId: string): Promise<FamilyRelati
 
 /**
  * Přidá vztah: watcher dostává push za watched.
- * POST /family  { watcher_device_id, watched_device_id }
+ * POST /family  { watcher_device_id, watched_device_id, name }
  */
 export async function addFamilyRelation(
 	watcherDeviceId: string,
 	watchedDeviceId: string,
+	name: string,
 ): Promise<{ id: string }> {
 	return request("/family", {
 		method: "POST",
 		body: JSON.stringify({
 			watcher_device_id: watcherDeviceId,
 			watched_device_id: watchedDeviceId,
+			name,
 		}),
 	});
 }
