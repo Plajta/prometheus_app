@@ -4,6 +4,7 @@ import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
 
 const { width: SW } = Dimensions.get("window");
 
@@ -147,41 +148,7 @@ export default function DeviceScreen() {
 						</Text>
 					</View>
 
-					<View
-						style={{
-							flexDirection: "row",
-							alignItems: "center",
-							gap: 6,
-							paddingHorizontal: 12,
-							paddingVertical: 8,
-							borderRadius: 12,
-							backgroundColor: isConnected
-								? isDark
-									? "#422006"
-									: "#fefce8"
-								: isDark
-									? "#18181b"
-									: "#f4f4f5",
-							borderWidth: 1,
-							borderColor: isConnected
-								? isDark
-									? "#eab30840"
-									: "#fef08a"
-								: isDark
-									? "#27272a"
-									: "#e4e4e7",
-						}}
-					>
-						<View
-							style={{
-								width: 7,
-								height: 7,
-								borderRadius: 99,
-								backgroundColor: isConnected ? "#eab308" : "#a1a1aa",
-							}}
-						/>
-						<Ionicons name="bluetooth" size={14} color={isConnected ? "#eab308" : "#a1a1aa"} />
-					</View>
+					<BluetoothStatusPill isConnected={isConnected} />
 				</View>
 			</View>
 
