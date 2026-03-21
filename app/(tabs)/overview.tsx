@@ -1,8 +1,7 @@
 import { useMemo } from "react";
-import { View, Text, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView, Pressable, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { StatusBar } from "expo-status-bar";
 
 type DayStatus = "full" | "partial" | "missed" | "future";
 
@@ -35,11 +34,12 @@ function buildHeatmapData(): { date: Date; status: DayStatus }[] {
 }
 
 function HeatmapCell({ status }: { status: DayStatus }) {
+	const isDark = useColorScheme() === "dark";
 	const bg = {
 		full: "#14b8a6",
 		partial: "#f59e0b",
 		missed: "#ef4444",
-		future: "#27272a",
+		future: isDark ? "#27272a" : "#f4f4f5", // zinc-800 / zinc-100
 	}[status];
 
 	return <View style={{ backgroundColor: bg, width: 32, height: 32, borderRadius: 6 }} />;
@@ -60,7 +60,7 @@ function Heatmap() {
 			<View className="flex-row gap-1 mb-1.5">
 				{DAY_LABELS.map((d) => (
 					<View key={d} style={{ width: 32 }} className="items-center">
-						<Text className="text-zinc-600 text-xs">{d}</Text>
+						<Text className="text-zinc-400 dark:text-zinc-600 text-xs">{d}</Text>
 					</View>
 				))}
 			</View>
@@ -106,14 +106,14 @@ function StatCard({
 		value >= 80 ? "#14b8a6" : value >= 60 ? "#f59e0b" : "#ef4444";
 
 	return (
-		<View className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
+		<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800">
 			<Text className="text-zinc-500 text-xs font-bold tracking-widest uppercase">
 				{label}
 			</Text>
 			<Text style={{ color: textColor }} className="text-4xl font-black mt-1">
 				{value}%
 			</Text>
-			<Text className="text-zinc-600 text-xs mt-1">{subtitle}</Text>
+			<Text className="text-zinc-500 dark:text-zinc-600 text-xs mt-1">{subtitle}</Text>
 		</View>
 	);
 }
@@ -123,7 +123,7 @@ function WeeklyBar({ day, percent }: { day: string; percent: number }) {
 	return (
 		<View className="items-center gap-1.5" style={{ flex: 1 }}>
 			<Text className="text-zinc-500 text-xs">{percent}%</Text>
-			<View className="w-6 bg-zinc-800 rounded-full overflow-hidden" style={{ height: 60 }}>
+			<View className="w-6 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden" style={{ height: 60 }}>
 				<View
 					style={{
 						height: `${percent}%`,
@@ -136,7 +136,7 @@ function WeeklyBar({ day, percent }: { day: string; percent: number }) {
 					}}
 				/>
 			</View>
-			<Text className="text-zinc-600 text-xs">{day}</Text>
+			<Text className="text-zinc-400 dark:text-zinc-600 text-xs">{day}</Text>
 		</View>
 	);
 }
@@ -153,15 +153,14 @@ const WEEKLY_DATA = [
 
 export default function OverviewScreen() {
 	return (
-		<SafeAreaView className="flex-1 bg-zinc-950">
-			<StatusBar style="light" />
+		<SafeAreaView className="flex-1 bg-zinc-50 dark:bg-zinc-950">
 			<ScrollView
 				showsVerticalScrollIndicator={false}
 				contentContainerStyle={{ paddingBottom: 40 }}
 			>
 				{/* Header */}
 				<View className="px-4 pt-2 pb-4">
-					<Text className="text-white text-2xl font-bold">Přehled</Text>
+					<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Přehled</Text>
 				</View>
 
 				{/* Stat cards */}
@@ -171,8 +170,8 @@ export default function OverviewScreen() {
 				</View>
 
 				{/* This week bar chart */}
-				<View className="mx-4 mb-4 bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
-					<Text className="text-white font-semibold text-base mb-4">
+				<View className="mx-4 mb-4 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800">
+					<Text className="text-zinc-900 dark:text-white font-semibold text-base mb-4">
 						Tento týden
 					</Text>
 					<View className="flex-row justify-between items-end">
@@ -183,9 +182,9 @@ export default function OverviewScreen() {
 				</View>
 
 				{/* Heatmap */}
-				<View className="mx-4 mb-4 bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
+				<View className="mx-4 mb-4 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800">
 					<View className="flex-row items-center justify-between mb-4">
-						<Text className="text-white font-semibold text-base">
+						<Text className="text-zinc-900 dark:text-white font-semibold text-base">
 							Docházka — 12 týdnů
 						</Text>
 					</View>
@@ -193,12 +192,12 @@ export default function OverviewScreen() {
 				</View>
 
 				{/* Export */}
-				<Pressable className="mx-4 bg-zinc-900 rounded-2xl p-4 border border-zinc-800 flex-row items-center gap-3 active:border-teal-500/40">
-					<View className="w-10 h-10 bg-teal-500/15 rounded-xl items-center justify-center">
+				<Pressable className="mx-4 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 flex-row items-center gap-3 active:border-teal-500/40">
+					<View className="w-10 h-10 bg-teal-50 dark:bg-teal-500/15 rounded-xl items-center justify-center">
 						<Ionicons name="document-text" size={20} color="#14b8a6" />
 					</View>
 					<View className="flex-1">
-						<Text className="text-white font-semibold">Exportovat pro lékaře</Text>
+						<Text className="text-zinc-900 dark:text-white font-semibold">Exportovat pro lékaře</Text>
 						<Text className="text-zinc-500 text-sm">PDF za poslední 3 měsíce</Text>
 					</View>
 					<Ionicons name="chevron-forward" size={16} color="#52525b" />

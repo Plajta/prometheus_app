@@ -2,7 +2,6 @@ import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 
 interface Medication {
 	id: string;
@@ -60,26 +59,26 @@ function stockColor(percent: number): string {
 }
 
 function stockTextClass(percent: number): string {
-	if (percent > 40) return "text-teal-400";
-	if (percent > 15) return "text-amber-400";
-	return "text-red-400";
+	if (percent > 40) return "text-teal-600 dark:text-teal-400";
+	if (percent > 15) return "text-amber-600 dark:text-amber-400";
+	return "text-red-600 dark:text-red-400";
 }
 
 function MedicationCard({ medication }: { medication: Medication }) {
 	return (
-		<Pressable className="mx-4 mb-3 bg-zinc-900 rounded-2xl p-4 border border-zinc-800 active:border-zinc-700">
+		<Pressable className="mx-4 mb-3 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 active:border-zinc-300 dark:active:border-zinc-700">
 			<View className="flex-row items-start justify-between">
 				<View className="flex-1 mr-3">
-					<Text className="text-white font-bold text-lg leading-tight">
+					<Text className="text-zinc-900 dark:text-white font-bold text-lg leading-tight">
 						{medication.name}
 					</Text>
-					<Text className="text-zinc-500 text-sm mt-0.5">{medication.strength}</Text>
+					<Text className="text-zinc-500 dark:text-zinc-400 text-sm mt-0.5">{medication.strength}</Text>
 
 					{/* Compartment chips */}
 					<View className="flex-row gap-1.5 mt-2.5">
 						{medication.compartments.map((c) => (
-							<View key={c} className="bg-zinc-800 px-2 py-1 rounded-lg">
-								<Text className="text-zinc-400 text-xs font-mono font-semibold">
+							<View key={c} className="bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-lg">
+								<Text className="text-zinc-600 dark:text-zinc-400 text-xs font-mono font-semibold">
 									{c}
 								</Text>
 							</View>
@@ -89,10 +88,10 @@ function MedicationCard({ medication }: { medication: Medication }) {
 
 				{/* Status badge */}
 				<View
-					className={`px-3 py-1.5 rounded-full ${medication.active ? "bg-teal-500/15" : "bg-zinc-800"}`}
+					className={`px-3 py-1.5 rounded-full ${medication.active ? "bg-teal-50 dark:bg-teal-500/15" : "bg-zinc-100 dark:bg-zinc-800"}`}
 				>
 					<Text
-						className={`text-xs font-semibold ${medication.active ? "text-teal-400" : "text-zinc-500"}`}
+						className={`text-xs font-semibold ${medication.active ? "text-teal-700 dark:text-teal-400" : "text-zinc-500 dark:text-zinc-500"}`}
 					>
 						{medication.active ? "aktivní" : "pauza"}
 					</Text>
@@ -102,12 +101,12 @@ function MedicationCard({ medication }: { medication: Medication }) {
 			{/* Stock progress */}
 			<View className="mt-4">
 				<View className="flex-row justify-between items-center mb-1.5">
-					<Text className="text-zinc-600 text-xs">Zásoba</Text>
+					<Text className="text-zinc-500 dark:text-zinc-600 text-xs">Zásoba</Text>
 					<Text className={`text-xs font-bold ${stockTextClass(medication.stockPercent)}`}>
 						{medication.stockDays} dní zbývá
 					</Text>
 				</View>
-				<View className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+				<View className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
 					<View
 						style={{
 							width: `${medication.stockPercent}%`,
@@ -125,12 +124,10 @@ export default function MedicationsScreen() {
 	const router = useRouter();
 
 	return (
-		<SafeAreaView className="flex-1 bg-zinc-950">
-			<StatusBar style="light" />
-
+		<SafeAreaView className="flex-1 bg-zinc-50 dark:bg-zinc-950">
 			{/* Header */}
 			<View className="px-4 pt-2 pb-4 flex-row items-center justify-between">
-				<Text className="text-white text-2xl font-bold">Léky</Text>
+				<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Léky</Text>
 				<Pressable
 					onPress={() => router.push("/(onboarding)/add-medication")}
 					className="flex-row items-center gap-1.5 bg-teal-500 px-4 py-2.5 rounded-xl active:bg-teal-600"
@@ -142,7 +139,7 @@ export default function MedicationsScreen() {
 
 			<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
 				{/* Active medications */}
-				<Text className="text-zinc-600 text-xs font-bold tracking-widest uppercase px-4 mb-3">
+				<Text className="text-zinc-500 text-xs font-bold tracking-widest uppercase px-4 mb-3">
 					Aktivní · {MOCK_MEDICATIONS.filter((m) => m.active).length}
 				</Text>
 				{MOCK_MEDICATIONS.filter((m) => m.active).map((med) => (
@@ -152,7 +149,7 @@ export default function MedicationsScreen() {
 				{/* Paused medications */}
 				{MOCK_MEDICATIONS.some((m) => !m.active) && (
 					<>
-						<Text className="text-zinc-600 text-xs font-bold tracking-widest uppercase px-4 mt-4 mb-3">
+						<Text className="text-zinc-500 text-xs font-bold tracking-widest uppercase px-4 mt-4 mb-3">
 							Pozastavené · {MOCK_MEDICATIONS.filter((m) => !m.active).length}
 						</Text>
 						{MOCK_MEDICATIONS.filter((m) => !m.active).map((med) => (

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { View, Text, ScrollView, Pressable, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { StatusBar } from "expo-status-bar";
 
 type DoseStatus = "waiting" | "taken" | "missed" | "skipped";
 
@@ -93,15 +92,15 @@ function formatDate(date: Date): string {
 
 function StatusPill({ status }: { status: DoseStatus }) {
 	const map = {
-		waiting: { bg: "#27272a", text: "#a1a1aa", label: "čeká" },
-		taken: { bg: "#0d2d29", text: "#2dd4bf", label: "vzato" },
-		missed: { bg: "#2d0d0d", text: "#f87171", label: "zmeškáno" },
-		skipped: { bg: "#1c1c1c", text: "#71717a", label: "přeskočeno" },
+		waiting: { container: "bg-zinc-200 dark:bg-zinc-800", text: "text-zinc-600 dark:text-zinc-400", label: "čeká" },
+		taken: { container: "bg-teal-100 dark:bg-teal-950", text: "text-teal-700 dark:text-teal-400", label: "vzato" },
+		missed: { container: "bg-red-100 dark:bg-red-950", text: "text-red-700 dark:text-red-400", label: "zmeškáno" },
+		skipped: { container: "bg-zinc-100 dark:bg-zinc-900", text: "text-zinc-500 dark:text-zinc-500", label: "přeskočeno" },
 	};
 	const c = map[status];
 	return (
-		<View style={{ backgroundColor: c.bg }} className="px-2.5 py-1 rounded-full">
-			<Text style={{ color: c.text }} className="text-xs font-semibold">
+		<View className={`px-2.5 py-1 rounded-full ${c.container}`}>
+			<Text className={`text-xs font-semibold ${c.text}`}>
 				{c.label}
 			</Text>
 		</View>
@@ -117,38 +116,35 @@ function DoseRow({
 	onPress: () => void;
 	onLongPress: () => void;
 }) {
-	const dotColor =
+	const dotClass =
 		dose.status === "taken"
-			? "#2dd4bf"
+			? "bg-teal-400"
 			: dose.status === "missed"
-				? "#f87171"
-				: "#3f3f46";
+				? "bg-red-400"
+				: "bg-zinc-300 dark:bg-zinc-700";
 
 	return (
 		<Pressable
 			onPress={onPress}
 			onLongPress={onLongPress}
-			className="flex-row items-center px-4 py-3.5 active:bg-zinc-800/40"
+			className="flex-row items-center px-4 py-3.5 active:bg-zinc-200/50 dark:active:bg-zinc-800/40"
 		>
-			<View
-				style={{ backgroundColor: dotColor }}
-				className="w-2 h-2 rounded-full mr-3"
-			/>
+			<View className={`w-2 h-2 rounded-full mr-3 ${dotClass}`} />
 			<View className="flex-1">
 				<View className="flex-row items-center gap-2">
-					<Text className="text-white font-semibold text-base">
+					<Text className="text-zinc-900 dark:text-white font-semibold text-base">
 						{dose.medicationName}
 					</Text>
-					<Text className="text-zinc-500 text-sm">{dose.strength}</Text>
+					<Text className="text-zinc-500 dark:text-zinc-400 text-sm">{dose.strength}</Text>
 				</View>
 				<View className="flex-row items-center gap-2 mt-0.5">
-					<Text className="text-zinc-600 text-xs">
+					<Text className="text-zinc-500 dark:text-zinc-600 text-xs">
 						Přihrádka {dose.compartment}
 					</Text>
 					{dose.foodRelation && (
 						<>
-							<Text className="text-zinc-700">·</Text>
-							<Text className="text-zinc-600 text-xs">{dose.foodRelation}</Text>
+							<Text className="text-zinc-300 dark:text-zinc-700">·</Text>
+							<Text className="text-zinc-500 dark:text-zinc-600 text-xs">{dose.foodRelation}</Text>
 						</>
 					)}
 				</View>
@@ -175,17 +171,17 @@ function TimeSection({
 				<Text className="text-zinc-500 text-xs font-bold tracking-widest uppercase">
 					{group.label}
 				</Text>
-				<Text className="text-zinc-700 text-xs ml-2">{group.time}</Text>
+				<Text className="text-zinc-900 dark:text-zinc-300 font-medium text-xs ml-2">{group.time}</Text>
 				{allTaken && (
 					<View className="ml-auto">
 						<Ionicons name="checkmark-circle" size={16} color="#14b8a6" />
 					</View>
 				)}
 			</View>
-			<View className="mx-4 bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800">
+			<View className="mx-4 bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
 				{group.doses.map((dose, index) => (
 					<View key={dose.id}>
-						{index > 0 && <View className="h-px bg-zinc-800 mx-4" />}
+						{index > 0 && <View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />}
 						<DoseRow
 							dose={dose}
 							onPress={() => onDosePress(dose.id)}
@@ -242,8 +238,7 @@ export default function TodayScreen() {
 	}
 
 	return (
-		<SafeAreaView className="flex-1 bg-zinc-950">
-			<StatusBar style="light" />
+		<SafeAreaView className="flex-1 bg-zinc-50 dark:bg-zinc-950">
 			<ScrollView showsVerticalScrollIndicator={false}>
 				{/* Header */}
 				<View className="px-4 pt-2 pb-5">
@@ -252,21 +247,20 @@ export default function TodayScreen() {
 							<Text className="text-zinc-500 text-sm capitalize">
 								{formatDate(new Date())}
 							</Text>
-							<Text className="text-white text-2xl font-bold mt-0.5">
+							<Text className="text-zinc-900 dark:text-white text-2xl font-bold mt-0.5">
 								Dnešní dávky
 							</Text>
 						</View>
 
 						{/* BLE badge */}
-						<Pressable className="flex-row items-center gap-2 bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-800 mt-1 active:border-zinc-700">
+						<Pressable className="flex-row items-center gap-2 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 mt-1 active:border-zinc-300 dark:active:border-zinc-700">
 							<View
-								className="w-1.5 h-1.5 rounded-full"
-								style={{ backgroundColor: bleConnected ? "#2dd4bf" : "#52525b" }}
+								className={`w-1.5 h-1.5 rounded-full ${bleConnected ? "bg-teal-400" : "bg-zinc-400 dark:bg-zinc-500"}`}
 							/>
 							<Ionicons
 								name="bluetooth"
 								size={15}
-								color={bleConnected ? "#2dd4bf" : "#52525b"}
+								color={bleConnected ? "#2dd4bf" : "#71717a"}
 							/>
 						</Pressable>
 					</View>
@@ -277,11 +271,11 @@ export default function TodayScreen() {
 							<Text className="text-zinc-500 text-xs font-medium">
 								Dnešní pokrok
 							</Text>
-							<Text className="text-teal-400 text-xs font-bold">
+							<Text className="text-teal-600 dark:text-teal-400 text-xs font-bold">
 								{takenCount}/{totalCount} dávek
 							</Text>
 						</View>
-						<View className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+						<View className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
 							<View
 								className="h-full bg-teal-500 rounded-full"
 								style={{ width: `${progress * 100}%` }}
@@ -292,9 +286,9 @@ export default function TodayScreen() {
 
 				{/* Low stock banner */}
 				{lowStockMed && (
-					<View className="mx-4 mb-5 flex-row items-center gap-3 bg-amber-500/10 border border-amber-500/25 rounded-2xl px-4 py-3">
+					<View className="mx-4 mb-5 flex-row items-center gap-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25 rounded-2xl px-4 py-3">
 						<Ionicons name="warning" size={18} color="#f59e0b" />
-						<Text className="text-amber-400 text-sm flex-1">
+						<Text className="text-amber-800 dark:text-amber-400 text-sm flex-1">
 							<Text className="font-bold">{lowStockMed}</Text> dojde za{" "}
 							<Text className="font-bold">{lowStockDays} dní</Text>
 						</Text>
