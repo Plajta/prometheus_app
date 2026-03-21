@@ -191,7 +191,15 @@ class NrfBleManager(private val context: Context) {
 
         scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                val name = result.device.name ?: return
+                val deviceName = result.device.name
+                val recordName = result.scanRecord?.deviceName
+                val name = recordName ?: deviceName
+
+                // Pro debug vypíšeme všechna zařízení (ignorujeme ta úplně bez jména)
+                if (name != null) {
+                    Log.d(TAG, "Scanned: name=$name (device.name=$deviceName, recordName=$recordName), addr=${result.device.address}")
+                }
+
                 if (name == "XIAO_Sense_Accel") {
                     Log.i(TAG, "Found XIAO device: ${result.device.address}")
                     stopScan()
