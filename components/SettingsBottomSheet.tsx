@@ -8,7 +8,7 @@ interface Props {
 
 export const SettingsBottomSheet = forwardRef<BottomSheetModal, Props>(({ children }, ref) => {
 	const isDark = useColorScheme() === "dark";
-	const snapPoints = useMemo(() => ["60%"], []);
+	const snapPoints = useMemo(() => ["70%"], []);
 
 	const renderBackdrop = useCallback(
 		(props: any) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.6} />,
@@ -25,9 +25,7 @@ export const SettingsBottomSheet = forwardRef<BottomSheetModal, Props>(({ childr
 			backgroundStyle={{ backgroundColor: isDark ? "#18181b" : "#ffffff" }}
 			handleIndicatorStyle={{ backgroundColor: isDark ? "#52525b" : "#d4d4d8" }}
 		>
-			<BottomSheetView className="px-6 py-2">
-				{children}
-			</BottomSheetView>
+			<BottomSheetView className="px-6 py-2">{children}</BottomSheetView>
 		</BottomSheetModal>
 	);
 });

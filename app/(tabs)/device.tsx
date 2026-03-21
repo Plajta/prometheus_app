@@ -1,8 +1,8 @@
-import { View, Text, Switch } from "react-native";
+import { View, Text, Switch, Alert, Pressable } from "react-native";
 import { useState, useRef } from "react";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
-import { useDeviceStore, Slot } from "~/store/useDeviceStore";
+import { useBleDeviceStore, Slot } from "~/store/useBleDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
@@ -37,12 +37,13 @@ const LEGEND = [
 
 export default function DeviceScreen() {
 	const [ledOn, setLedOn] = useState(false);
+	const [alertsEnabled, setAlertsEnabled] = useState(true);
 	const bottomSheetRef = useRef<BottomSheetModal>(null);
-	const isConnected = useDeviceStore((state) => state.isConnected);
-	const battery = useDeviceStore((state) => state.battery);
-	const temperature = useDeviceStore((state) => state.temperature);
-	const slotsA = useDeviceStore((state) => state.slotsA);
-	const slotsB = useDeviceStore((state) => state.slotsB);
+	const isConnected = useBleDeviceStore((state) => state.isConnected);
+	const battery = useBleDeviceStore((state) => state.battery);
+	const temperature = useBleDeviceStore((state) => state.temperature);
+	const slotsA = useBleDeviceStore((state) => state.slotsA);
+	const slotsB = useBleDeviceStore((state) => state.slotsB);
 
 	const takenCount = [...slotsA, ...slotsB].filter((s) => s.taken).length;
 
@@ -143,27 +144,82 @@ export default function DeviceScreen() {
 			<SettingsBottomSheet ref={bottomSheetRef}>
 				<Text className="text-zinc-900 dark:text-white text-[18px] font-bold mb-4">Nastavení lékovky</Text>
 
-				<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">
-					<View className="flex-row items-center gap-4">
-						<View className="w-10 h-10 rounded-full bg-yellow-500/10 items-center justify-center">
-							<Ionicons name="bulb" size={20} color={ledOn ? "#eab308" : "#71717a"} />
+				<View className="gap-3">
+					<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">
+						<View className="flex-row items-center gap-4">
+							<View className="w-10 h-10 rounded-full bg-yellow-500/10 items-center justify-center">
+								<Ionicons name="bulb" size={20} color={ledOn ? "#eab308" : "#71717a"} />
+							</View>
+							<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
+								Světelná indikace
+							</Text>
 						</View>
-						<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">Světelná indikace</Text>
 					</View>
 
-					<Switch
-						value={ledOn}
-						onValueChange={async (val) => {
+					<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">
+						<View className="flex-row items-center gap-4">
+							<View className="w-10 h-10 rounded-full bg-blue-500/10 items-center justify-center">
+								<Ionicons name="volume-high" size={20} color={alertsEnabled ? "#3b82f6" : "#71717a"} />
+							</View>
+							<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
+								Zvukové upozornění
+							</Text>
+						</View>
+
+						<Switch
+							value={alertsEnabled}
+							onValueChange={async (val) => {
+								try {
+									await BleWrapperModule.setAlertsEnabled(val);
+									setAlertsEnabled(val);
+								} catch (e) {
+									console.error(e);
+								}
+							}}
+							trackColor={{ false: "#3f3f46", true: "#3b82f6" }}
+							thumbColor="#ffffff"
+						/>
+					</View>
+
+					<Pressable
+						onPress={async () => {
 							try {
-								await BleWrapperModule.setLed(val);
-								setLedOn(val);
+								await BleWrapperModule.findMy();
 							} catch (e) {
 								console.error(e);
 							}
 						}}
-						trackColor={{ false: "#3f3f46", true: "#eab308" }}
-						thumbColor="#ffffff"
-					/>
+						className="flex-row items-center p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80 active:opacity-70"
+					>
+						<View className="w-10 h-10 rounded-full bg-red-500/10 items-center justify-center mr-4">
+							<Ionicons name="location" size={20} color="#ef4444" />
+						</View>
+						<Text className="text-zinc-900 dark:text-white text-[15px] font-medium flex-1">
+							Najít lékovku
+						</Text>
+						<Ionicons name="chevron-forward" size={18} color="#71717a" />
+					</Pressable>
+
+					<Pressable
+						onPress={async () => {
+							try {
+								await BleWrapperModule.syncTime();
+								Alert.alert("Úspěch", "Čas byl synchronizován s telefonem.");
+							} catch (e) {
+								console.error(e);
+								Alert.alert("Chyba", "Nepodařilo se synchronizovat čas.");
+							}
+						}}
+						className="flex-row items-center p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80 active:opacity-70"
+					>
+						<View className="w-10 h-10 rounded-full bg-indigo-500/10 items-center justify-center mr-4">
+							<Ionicons name="time" size={20} color="#6366f1" />
+						</View>
+						<Text className="text-zinc-900 dark:text-white text-[15px] font-medium flex-1">
+							Synchronizovat čas
+						</Text>
+						<Ionicons name="chevron-forward" size={18} color="#71717a" />
+					</Pressable>
 				</View>
 			</SettingsBottomSheet>
 		</SafeAreaView>
