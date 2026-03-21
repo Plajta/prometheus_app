@@ -53,7 +53,7 @@ const MOCK_MEDICATIONS: Medication[] = [
 ];
 
 function stockColor(percent: number): string {
-	if (percent > 40) return "#14b8a6";
+	if (percent > 40) return "#eab308";
 	if (percent > 15) return "#f59e0b";
 	return "#ef4444";
 }

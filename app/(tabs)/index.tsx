@@ -162,7 +162,7 @@ function TimeSection({
 				<Text className="text-zinc-900 dark:text-zinc-300 font-medium text-xs ml-2">{group.time}</Text>
 				{allTaken && (
 					<View className="ml-auto">
-						<Ionicons name="checkmark-circle" size={16} color="#14b8a6" />
+						<Ionicons name="checkmark-circle" size={16} color="#eab308" />
 					</View>
 				)}
 			</View>
@@ -238,7 +238,7 @@ export default function TodayScreen() {
 						<View
 							className={`w-1.5 h-1.5 rounded-full ${bleConnected ? "bg-teal-400" : "bg-zinc-400 dark:bg-zinc-500"}`}
 						/>
-						<Ionicons name="bluetooth" size={15} color={bleConnected ? "#2dd4bf" : "#71717a"} />
+						<Ionicons name="bluetooth" size={15} color={bleConnected ? "#facc15" : "#71717a"} />
 					</Pressable>
 				</View>
 

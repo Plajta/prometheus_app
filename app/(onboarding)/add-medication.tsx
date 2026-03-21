@@ -107,7 +107,7 @@ export default function AddMedication() {
 					</Text>
 					<View className="bg-zinc-900 border border-teal-500/30 rounded-2xl p-4">
 						<View className="flex-row items-center gap-2 mb-2">
-							<Ionicons name="checkmark-circle" size={15} color="#14b8a6" />
+							<Ionicons name="checkmark-circle" size={15} color="#eab308" />
 							<Text className="text-teal-400 text-xs font-semibold">
 								Lék nalezen · kód {MOCK_DRUG.sukl}
 							</Text>
@@ -129,7 +129,7 @@ export default function AddMedication() {
 							<View key={i}>
 								{i > 0 && <View className="h-px bg-zinc-800" />}
 								<View className="flex-row items-center px-4 py-3.5">
-									<Ionicons name="time" size={16} color="#14b8a6" />
+									<Ionicons name="time" size={16} color="#eab308" />
 									<Text className="text-white font-semibold ml-3 flex-1 text-base">
 										{time}
 									</Text>
@@ -139,7 +139,7 @@ export default function AddMedication() {
 						))}
 						<View className="h-px bg-zinc-800" />
 						<Pressable className="flex-row items-center px-4 py-3.5 gap-3 active:bg-zinc-800/40">
-							<Ionicons name="add-circle" size={18} color="#14b8a6" />
+							<Ionicons name="add-circle" size={18} color="#eab308" />
 							<Text className="text-teal-400 font-semibold">Přidat čas</Text>
 						</Pressable>
 					</View>
@@ -158,12 +158,12 @@ export default function AddMedication() {
 								className="px-5 py-3 rounded-xl border"
 								style={{
 									backgroundColor: compartment === c ? "#0d2d29" : "#18181b",
-									borderColor: compartment === c ? "#14b8a6" : "#27272a",
+									borderColor: compartment === c ? "#eab308" : "#27272a",
 								}}
 							>
 								<Text
 									className="font-mono font-bold text-base"
-									style={{ color: compartment === c ? "#2dd4bf" : "#71717a" }}
+									style={{ color: compartment === c ? "#facc15" : "#71717a" }}
 								>
 									{c}
 								</Text>
@@ -185,14 +185,14 @@ export default function AddMedication() {
 								className="px-4 py-2.5 rounded-xl border flex-row items-center gap-1.5"
 								style={{
 									backgroundColor: foodRelation === opt.id ? "#0d2d29" : "#18181b",
-									borderColor: foodRelation === opt.id ? "#14b8a6" : "#27272a",
+									borderColor: foodRelation === opt.id ? "#eab308" : "#27272a",
 								}}
 							>
 								<Text style={{ fontSize: 13 }}>{opt.icon}</Text>
 								<Text
 									className="text-sm font-semibold"
 									style={{
-										color: foodRelation === opt.id ? "#2dd4bf" : "#71717a",
+										color: foodRelation === opt.id ? "#facc15" : "#71717a",
 									}}
 								>
 									{opt.label}

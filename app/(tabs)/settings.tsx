@@ -24,7 +24,7 @@ function SettingRow({
 	icon,
 	iconBgDark = "#27272a",
 	iconBgLight = "#f4f4f5", // zinc-100
-	iconColor = "#14b8a6",
+	iconColor = "#eab308",
 	label,
 	value,
 	toggle,
@@ -57,7 +57,7 @@ function SettingRow({
 				<Switch
 					value={toggle}
 					onValueChange={onToggle}
-					trackColor={{ false: isDark ? "#3f3f46" : "#e4e4e7", true: "#0d9488" }}
+					trackColor={{ false: isDark ? "#3f3f46" : "#e4e4e7", true: "#ca8a04" }}
 					thumbColor={toggle ? "#5eead4" : (isDark ? "#a1a1aa" : "#ffffff")}
 				/>
 			)}
@@ -109,8 +109,8 @@ export default function SettingsScreen() {
 					<SettingRow
 						icon="bluetooth"
 						iconBgDark="#0d2d29"
-						iconBgLight="#ccfbf1"
-						iconColor="#0d9488"
+						iconBgLight="#fef9c3"
+						iconColor="#ca8a04"
 						label="Lékovka Alpha"
 						value="připojeno"
 						chevron
@@ -128,8 +128,8 @@ export default function SettingsScreen() {
 					<SettingRow
 						icon="thermometer"
 						iconBgDark="#0d2d29"
-						iconBgLight="#ccfbf1"
-						iconColor="#0d9488"
+						iconBgLight="#fef9c3"
+						iconColor="#ca8a04"
 						label="Teplota uvnitř"
 						value="21.3 °C"
 					/>
@@ -229,8 +229,8 @@ export default function SettingsScreen() {
 					<SettingRow
 						icon="refresh-circle"
 						iconBgDark="#0d2d29"
-						iconBgLight="#ccfbf1"
-						iconColor="#0d9488"
+						iconBgLight="#fef9c3"
+						iconColor="#ca8a04"
 						label="Spustit průvodce znovu"
 						chevron
 						onPress={() => router.push("/(onboarding)")}

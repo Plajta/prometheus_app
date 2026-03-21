@@ -36,7 +36,7 @@ function buildHeatmapData(): { date: Date; status: DayStatus }[] {
 function HeatmapCell({ status }: { status: DayStatus }) {
 	const isDark = useColorScheme() === "dark";
 	const bg = {
-		full: "#14b8a6",
+		full: "#eab308",
 		partial: "#f59e0b",
 		missed: "#ef4444",
 		future: isDark ? "#27272a" : "#f4f4f5", // zinc-800 / zinc-100
@@ -77,7 +77,7 @@ function Heatmap() {
 			{/* Legend */}
 			<View className="flex-row gap-4 mt-4">
 				{[
-					{ color: "#14b8a6", label: "Vše vzato" },
+					{ color: "#eab308", label: "Vše vzato" },
 					{ color: "#f59e0b", label: "Část" },
 					{ color: "#ef4444", label: "Zmeškáno" },
 				].map((item) => (
@@ -103,7 +103,7 @@ function StatCard({
 	subtitle: string;
 }) {
 	const textColor =
-		value >= 80 ? "#14b8a6" : value >= 60 ? "#f59e0b" : "#ef4444";
+		value >= 80 ? "#eab308" : value >= 60 ? "#f59e0b" : "#ef4444";
 
 	return (
 		<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800">
@@ -119,7 +119,7 @@ function StatCard({
 }
 
 function WeeklyBar({ day, percent }: { day: string; percent: number }) {
-	const color = percent >= 80 ? "#14b8a6" : percent >= 60 ? "#f59e0b" : "#ef4444";
+	const color = percent >= 80 ? "#eab308" : percent >= 60 ? "#f59e0b" : "#ef4444";
 	return (
 		<View className="items-center gap-1.5" style={{ flex: 1 }}>
 			<Text className="text-zinc-500 text-xs">{percent}%</Text>
@@ -195,7 +195,7 @@ export default function OverviewScreen() {
 				{/* Export */}
 				<Pressable className="mx-4 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 flex-row items-center gap-3 active:border-teal-500/40">
 					<View className="w-10 h-10 bg-teal-50 dark:bg-teal-500/15 rounded-xl items-center justify-center">
-						<Ionicons name="document-text" size={20} color="#14b8a6" />
+						<Ionicons name="document-text" size={20} color="#eab308" />
 					</View>
 					<View className="flex-1">
 						<Text className="text-zinc-900 dark:text-white font-semibold">Exportovat pro lékaře</Text>

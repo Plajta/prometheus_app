@@ -46,7 +46,7 @@ export default function OnboardingDone() {
 							borderColor: "#14b8a655",
 						}}
 					>
-						<Ionicons name="checkmark-circle" size={64} color="#14b8a6" />
+						<Ionicons name="checkmark-circle" size={64} color="#eab308" />
 					</View>
 					<Text className="text-white text-3xl font-black text-center">
 						Vše připraveno!
@@ -68,7 +68,7 @@ export default function OnboardingDone() {
 								{i > 0 && <View className="h-px bg-zinc-800" />}
 								<View className="flex-row items-center px-4 py-3.5">
 									<View className="w-9 h-9 rounded-xl bg-zinc-800 items-center justify-center mr-3">
-										<Ionicons name={item.icon} size={16} color="#14b8a6" />
+										<Ionicons name={item.icon} size={16} color="#eab308" />
 									</View>
 									<Text className="text-zinc-400 flex-1 text-sm">{item.label}</Text>
 									<Text className="text-white text-sm font-semibold">

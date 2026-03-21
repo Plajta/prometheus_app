@@ -34,7 +34,7 @@ export default function TabsLayout() {
 					paddingBottom: Platform.OS === "ios" ? 0 : insets.bottom + 8,
 					height: Platform.OS === "ios" ? 82 : 65 + insets.bottom,
 				},
-				tabBarActiveTintColor: "#14b8a6",
+				tabBarActiveTintColor: "#eab308",
 				tabBarInactiveTintColor: isDark ? "#52525b" : "#a1a1aa",
 				tabBarLabelStyle: {
 					fontSize: 10,

@@ -50,16 +50,16 @@ export default function OnboardingPairing() {
 					style={{
 						backgroundColor: isConnected ? "#0d2d29" : "#18181b",
 						borderWidth: 1.5,
-						borderColor: isConnected ? "#14b8a6" : isFound ? "#2dd4bf55" : "#27272a",
+						borderColor: isConnected ? "#eab308" : isFound ? "#2dd4bf55" : "#27272a",
 					}}
 				>
 					{isScanning ? (
-						<ActivityIndicator size="large" color="#14b8a6" />
+						<ActivityIndicator size="large" color="#eab308" />
 					) : (
 						<Ionicons
 							name={isConnected ? "checkmark-circle" : "bluetooth"}
 							size={54}
-							color={isConnected ? "#14b8a6" : isFound ? "#2dd4bf" : "#52525b"}
+							color={isConnected ? "#eab308" : isFound ? "#facc15" : "#52525b"}
 						/>
 					)}
 				</View>
