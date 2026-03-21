@@ -1,11 +1,12 @@
 import { View, Text, Switch, Alert, Pressable } from "react-native";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useBleDeviceStore, Slot } from "~/store/useBleDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
 import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
 import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
@@ -115,6 +116,7 @@ const LEGEND: { key: StyleKey; label: string }[] = [
 export default function DeviceScreen() {
 	const [alertsEnabled, setAlertsEnabled] = useState(true);
 	const [slotStatuses, setSlotStatuses] = useState(() => computeStatuses(8, 0, 20, 0));
+	const [alarmLabels, setAlarmLabels] = useState({ morning: "08:00", evening: "20:00" });
 	const alarmTimes = useRef({ mh: 8, mm: 0, eh: 20, em: 0 });
 	const bottomSheetRef = useRef<BottomSheetModal>(null);
 	const router = useRouter();
@@ -125,24 +127,32 @@ export default function DeviceScreen() {
 	const slotsB = useBleDeviceStore((state) => state.slotsB);
 	const lastSyncTime = useBleDeviceStore((state) => state.lastSyncTime);
 
-	useEffect(() => {
+	const loadSettings = useCallback(() => {
 		const s = getDeviceSettings();
 		if (s) {
 			if (s.alerts_enabled !== null && s.alerts_enabled !== undefined) {
 				setAlertsEnabled(s.alerts_enabled === 1);
 			}
-			alarmTimes.current = {
-				mh: s.alarm_morning_h ?? 8,
-				mm: s.alarm_morning_m ?? 0,
-				eh: s.alarm_evening_h ?? 20,
-				em: s.alarm_evening_m ?? 0,
-			};
+			const mh = s.alarm_morning_h ?? 8;
+			const mm = s.alarm_morning_m ?? 0;
+			const eh = s.alarm_evening_h ?? 20;
+			const em = s.alarm_evening_m ?? 0;
+			alarmTimes.current = { mh, mm, eh, em };
+			setAlarmLabels({
+				morning: `${String(mh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`,
+				evening: `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
+			});
+			setSlotStatuses(computeStatuses(mh, mm, eh, em));
 		}
+	}, []);
+
+	useFocusEffect(loadSettings);
+
+	useEffect(() => {
 		const recalc = () => {
 			const { mh, mm, eh, em } = alarmTimes.current;
 			setSlotStatuses(computeStatuses(mh, mm, eh, em));
 		};
-		recalc();
 		const interval = setInterval(recalc, 60_000);
 		return () => clearInterval(interval);
 	}, []);
@@ -189,11 +199,13 @@ export default function DeviceScreen() {
 				<>
 					<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 gap-[5px] mx-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 						<View className="flex-row gap-1.5 pb-2">
-							<View className="flex-1 items-center">
+							<View className="flex-1 items-center gap-0.5">
 								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">RÁNO</Text>
+								<Text className="text-zinc-400 dark:text-zinc-500 text-[11px] font-medium">{alarmLabels.morning}</Text>
 							</View>
-							<View className="flex-1 items-center">
+							<View className="flex-1 items-center gap-0.5">
 								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">VEČER</Text>
+								<Text className="text-zinc-400 dark:text-zinc-500 text-[11px] font-medium">{alarmLabels.evening}</Text>
 							</View>
 						</View>
 
