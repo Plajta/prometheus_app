@@ -483,6 +483,29 @@ export default function SettingsScreen() {
 	const alarmsSheetRef = useRef<BottomSheetModal>(null);
 	const snapPoints = useMemo(() => ["70%"], []);
 
+	// Blokuje dotyk na obsahu za sheetem po celou dobu, co je sheet otevřený nebo se zavírá.
+	// onChange(-1) = sheet se začal zavírat; pointerEvents se re-enableují až po doběhnutí animace.
+	const [sheetBlocking, setSheetBlocking] = useState(false);
+	const blockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const onSheetChange = useCallback((index: number) => {
+		if (blockTimerRef.current) clearTimeout(blockTimerRef.current);
+		if (index >= 0) {
+			setSheetBlocking(true);
+		} else {
+			// -1 = sheet se zavírá; počkáme na doběhnutí spring animace (~320 ms)
+			blockTimerRef.current = setTimeout(() => setSheetBlocking(false), 350);
+		}
+	}, []);
+
+	const presentSheet = useCallback(
+		(ref: React.RefObject<BottomSheetModal | null>) => {
+			if (sheetBlocking) return;
+			ref.current?.present();
+		},
+		[sheetBlocking],
+	);
+
 	// ── Relations state žije zde, ne uvnitř FamilySheet ─────────────────────
 	const { deviceId } = useDeviceStore();
 	const [relations, setRelations] = useState<FamilyRelation[]>([]);
@@ -510,7 +533,12 @@ export default function SettingsScreen() {
 
 	return (
 		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
-			<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+			{/* pointerEvents="none" zabrání touch passthrough přes backdrop sheetu na řádky pod ním */}
+			<ScrollView
+				showsVerticalScrollIndicator={false}
+				contentContainerStyle={{ paddingBottom: 40 }}
+				pointerEvents={sheetBlocking ? "none" : "auto"}
+			>
 				<View className="px-4 pt-2 pb-5">
 					<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Nastavení</Text>
 				</View>
@@ -522,7 +550,7 @@ export default function SettingsScreen() {
 						iconColor="#059669"
 						label="Správa příbuzných"
 						chevron
-						onPress={() => familySheetRef.current?.present()}
+						onPress={() => presentSheet(familySheetRef)}
 					/>
 					<Divider />
 					<SettingRow
@@ -531,7 +559,7 @@ export default function SettingsScreen() {
 						iconColor="#2563eb"
 						label="Notifikace příbuzným"
 						chevron
-						onPress={() => caregiverSheetRef.current?.present()}
+						onPress={() => presentSheet(caregiverSheetRef)}
 					/>
 				</Section>
 
@@ -543,7 +571,7 @@ export default function SettingsScreen() {
 						label="Čas připomenutí"
 						value="z plánu"
 						chevron
-						onPress={() => alarmsSheetRef.current?.present()}
+						onPress={() => presentSheet(alarmsSheetRef)}
 					/>
 					<Divider />
 					<SettingRow
@@ -553,7 +581,7 @@ export default function SettingsScreen() {
 						label="Eskalace po"
 						value="15 min"
 						chevron
-						onPress={() => alarmsSheetRef.current?.present()}
+						onPress={() => presentSheet(alarmsSheetRef)}
 					/>
 				</Section>
 
@@ -591,14 +619,14 @@ export default function SettingsScreen() {
 			</ScrollView>
 
 			{/* Notifikace příbuzným sheet */}
-			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps}>
+			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps} onChange={onSheetChange}>
 				<BottomSheetView className="flex-1 px-6 py-2">
 					<CaregiverNotifSheet enabled={caregiverNotif} onToggle={setCaregiverNotif} />
 				</BottomSheetView>
 			</BottomSheetModal>
 
 			{/* Správa příbuzných sheet */}
-			<BottomSheetModal ref={familySheetRef} {...sheetProps}>
+			<BottomSheetModal ref={familySheetRef} {...sheetProps} onChange={onSheetChange}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<FamilySheet
 						relations={relations}
@@ -609,7 +637,7 @@ export default function SettingsScreen() {
 			</BottomSheetModal>
 
 			{/* Časy upozornění sheet */}
-			<BottomSheetModal ref={alarmsSheetRef} {...sheetProps}>
+			<BottomSheetModal ref={alarmsSheetRef} {...sheetProps} onChange={onSheetChange}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<AlarmsSheet onClose={() => alarmsSheetRef.current?.dismiss()} />
 				</BottomSheetView>
