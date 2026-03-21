@@ -8,11 +8,14 @@ class BleWrapperModule : Module() {
 
     private val nrfManager by lazy {
         NrfBleManager(appContext.reactContext!!).also { manager ->
-            manager.onAccelData = { value ->
-                sendEvent("onAccelData", mapOf("value" to value))
+            manager.onTemperatureData = { temp ->
+                sendEvent("onTemperatureData", mapOf("temperature" to temp))
             }
-            manager.onButtonPress = {
-                sendEvent("onButtonPress", mapOf("pressed" to true))
+            manager.onBatteryLevel = { level ->
+                sendEvent("onBatteryLevel", mapOf("level" to level))
+            }
+            manager.onCupStateChanged = { state ->
+                sendEvent("onCupStateChanged", mapOf("state" to state))
             }
             manager.onDeviceConnected = {
                 sendEvent("onDeviceConnected", mapOf("connected" to true))
@@ -26,17 +29,20 @@ class BleWrapperModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("BleWrapper")
 
-        Events("onAccelData", "onButtonPress", "onDeviceConnected", "onDeviceDisconnected")
+        Events(
+            "onTemperatureData",
+            "onBatteryLevel",
+            "onCupStateChanged",
+            "onDeviceConnected",
+            "onDeviceDisconnected"
+        )
 
-        // Auto-scan + auto-connect in one call
+        // Auto-scan + auto-connect
         AsyncFunction("connectToXiao") { promise: Promise ->
             nrfManager.connectToXiao(
                 onResult = { success ->
-                    if (success) {
-                        promise.resolve(null)
-                    } else {
-                        promise.reject("CONNECT_ERROR", "Connection failed", null)
-                    }
+                    if (success) promise.resolve(null)
+                    else promise.reject("CONNECT_ERROR", "Connection failed", null)
                 },
                 onFail = { error ->
                     promise.reject("CONNECT_ERROR", error, null)
@@ -44,34 +50,79 @@ class BleWrapperModule : Module() {
             )
         }
 
-        // Gracefully disconnect
+        // Graceful disconnect
         AsyncFunction("disconnect") { promise: Promise ->
             nrfManager.disconnect()
             promise.resolve(null)
         }
 
-        // One-shot read of accelerometer (must be connected)
-        AsyncFunction("readAccelerometer") { promise: Promise ->
-            nrfManager.readAccelerometer(
-                onResult = { value ->
-                    promise.resolve(value)
-                },
-                onFail = { error ->
-                    promise.reject("READ_ERROR", error, null)
-                }
+        // Sync time from phone to XIAO
+        AsyncFunction("syncTime") { promise: Promise ->
+            nrfManager.syncTime(
+                onResult = { promise.resolve(null) },
+                onFail = { error -> promise.reject("WRITE_ERROR", error, null) }
             )
         }
 
-        // Turn green LED on/off (must be connected)
-        AsyncFunction("setLed") { on: Boolean, promise: Promise ->
-            nrfManager.writeLed(
-                on = on,
-                onResult = {
-                    promise.resolve(null)
-                },
-                onFail = { error ->
-                    promise.reject("WRITE_ERROR", error, null)
-                }
+        // Set alarm interval in seconds
+        AsyncFunction("setAlarmInterval") { seconds: Int, promise: Promise ->
+            nrfManager.setAlarmInterval(
+                seconds = seconds,
+                onResult = { promise.resolve(null) },
+                onFail = { error -> promise.reject("WRITE_ERROR", error, null) }
+            )
+        }
+
+        // Set morning alarm (hour, second)
+        AsyncFunction("setAlarmMorning") { hour: Int, second: Int, promise: Promise ->
+            nrfManager.setAlarmMorning(
+                hour = hour,
+                second = second,
+                onResult = { promise.resolve(null) },
+                onFail = { error -> promise.reject("WRITE_ERROR", error, null) }
+            )
+        }
+
+        // Set evening alarm (hour, second)
+        AsyncFunction("setAlarmEvening") { hour: Int, second: Int, promise: Promise ->
+            nrfManager.setAlarmEvening(
+                hour = hour,
+                second = second,
+                onResult = { promise.resolve(null) },
+                onFail = { error -> promise.reject("WRITE_ERROR", error, null) }
+            )
+        }
+
+        // Read cup state (14 bits)
+        AsyncFunction("readCupState") { promise: Promise ->
+            nrfManager.readCupState(
+                onResult = { value -> promise.resolve(value) },
+                onFail = { error -> promise.reject("READ_ERROR", error, null) }
+            )
+        }
+
+        // Write cup state (14 bits as uint16)
+        AsyncFunction("writeCupState") { state: Int, promise: Promise ->
+            nrfManager.writeCupState(
+                state = state,
+                onResult = { promise.resolve(null) },
+                onFail = { error -> promise.reject("WRITE_ERROR", error, null) }
+            )
+        }
+
+        // Find My — blink red LED on the XIAO
+        AsyncFunction("findMy") { promise: Promise ->
+            nrfManager.findMy(
+                onResult = { promise.resolve(null) },
+                onFail = { error -> promise.reject("WRITE_ERROR", error, null) }
+            )
+        }
+
+        // Read battery level
+        AsyncFunction("readBattery") { promise: Promise ->
+            nrfManager.readBattery(
+                onResult = { value -> promise.resolve(value) },
+                onFail = { error -> promise.reject("READ_ERROR", error, null) }
             )
         }
 

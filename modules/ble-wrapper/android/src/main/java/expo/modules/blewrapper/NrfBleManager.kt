@@ -11,20 +11,42 @@ import android.util.Log
 import java.util.*
 
 /**
- * BLE Manager for persistent connection with XIAO nRF52840 Sense.
+ * BLE Manager for persistent connection with XIAO_Pill_Box (nRF52840 Sense).
  *
- * Connects once, stays connected, subscribes to accelerometer notifications,
- * allows LED writes at any time, and emits events on disconnect.
+ * Standard services:
+ *   - Battery (0x180F) — read
+ *   - Environment Sensing / Temperature (0x181A / 0x2A6E) — read + notify
+ *   - Current Time (0x1805 / 0x2A2B) — write (sync time from phone)
+ *
+ * Custom Pill Service (0x2000):
+ *   - Alarm Interval  (0x2001) — write 4 bytes (uint32 seconds)
+ *   - Alarm Morning   (0x2002) — write 2 bytes (hour, second)
+ *   - Alarm Evening   (0x2003) — write 2 bytes (hour, second)
+ *   - Cup State       (0x2004) — read/write/notify 2 bytes (14 bits)
+ *   - Find My         (0x2005) — write anything → blinks red LED
  */
 class NrfBleManager(private val context: Context) {
 
     companion object {
         private const val TAG = "NrfBleManager"
 
-        val SERVICE_UUID: UUID     = uuidFrom16Bit(0x1234)
-        val ACCEL_CHAR_UUID: UUID  = uuidFrom16Bit(0x1235)
-        val LED_CHAR_UUID: UUID    = uuidFrom16Bit(0x1236)
-        val BUTTON_CHAR_UUID: UUID = uuidFrom16Bit(0x1237)
+        // Standard BLE services
+        val BATTERY_SERVICE_UUID: UUID  = uuidFrom16Bit(0x180F)
+        val BATTERY_LEVEL_UUID: UUID    = uuidFrom16Bit(0x2A19)
+
+        val ENV_SERVICE_UUID: UUID      = uuidFrom16Bit(0x181A)
+        val TEMPERATURE_UUID: UUID      = uuidFrom16Bit(0x2A6E)
+
+        val TIME_SERVICE_UUID: UUID     = uuidFrom16Bit(0x1805)
+        val CURRENT_TIME_UUID: UUID     = uuidFrom16Bit(0x2A2B)
+
+        // Custom Pill Service
+        val PILL_SERVICE_UUID: UUID     = uuidFrom16Bit(0x2000)
+        val ALARM_INTERVAL_UUID: UUID   = uuidFrom16Bit(0x2001)
+        val ALARM_MORNING_UUID: UUID    = uuidFrom16Bit(0x2002)
+        val ALARM_EVENING_UUID: UUID    = uuidFrom16Bit(0x2003)
+        val CUP_STATE_UUID: UUID        = uuidFrom16Bit(0x2004)
+        val FIND_MY_UUID: UUID          = uuidFrom16Bit(0x2005)
 
         // Standard BLE Client Characteristic Configuration Descriptor
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
@@ -50,8 +72,10 @@ class NrfBleManager(private val context: Context) {
     private val RECONNECT_DELAY_MS = 3000L
 
     // Event listeners set by the Module
-    var onAccelData: ((String) -> Unit)? = null
-    var onButtonPress: (() -> Unit)? = null
+    var onTemperatureData: ((Float) -> Unit)? = null
+    var onBatteryLevel: ((Int) -> Unit)? = null
+    var onCupStateChanged: ((Int) -> Unit)? = null
+    var onFindMyTriggered: (() -> Unit)? = null
     var onDeviceConnected: (() -> Unit)? = null
     var onDeviceDisconnected: (() -> Unit)? = null
 
@@ -95,10 +119,9 @@ class NrfBleManager(private val context: Context) {
                     isCommandInProgress = false
                 }
                 closeGatt()
-                // Emit disconnect event to JS
                 onDeviceDisconnected?.invoke()
 
-                // Auto-reconnect: schedule a re-scan after a short delay
+                // Auto-reconnect
                 if (shouldAutoReconnect) {
                     Log.i(TAG, "Auto-reconnect: will re-scan in ${RECONNECT_DELAY_MS}ms...")
                     reconnectHandler.postDelayed({
@@ -127,24 +150,31 @@ class NrfBleManager(private val context: Context) {
                 closeGatt()
                 return
             }
-            Log.i(TAG, "Services discovered, subscribing to accel notifications...")
+            Log.i(TAG, "Services discovered, subscribing to notifications...")
 
-            // Subscribe to accelerometer notifications
-            val service = gatt.getService(SERVICE_UUID)
-            val accelChar = service?.getCharacteristic(ACCEL_CHAR_UUID)
-            val buttonChar = service?.getCharacteristic(BUTTON_CHAR_UUID)
-
-            if (accelChar != null) {
-                enqueueCommand(BleCommand.EnableNotify(accelChar))
+            // Subscribe to Temperature notifications (0x181A / 0x2A6E)
+            val envService = gatt.getService(ENV_SERVICE_UUID)
+            val tempChar = envService?.getCharacteristic(TEMPERATURE_UUID)
+            if (tempChar != null) {
+                enqueueCommand(BleCommand.EnableNotify(tempChar))
             } else {
-                Log.w(TAG, "Accelerometer characteristic not found, continuing without notifications")
+                Log.w(TAG, "Temperature characteristic not found")
             }
 
-            // Subscribe to button notifications
-            if (buttonChar != null) {
-                enqueueCommand(BleCommand.EnableNotify(buttonChar))
+            // Subscribe to Cup State notifications (0x2000 / 0x2004)
+            val pillService = gatt.getService(PILL_SERVICE_UUID)
+            val cupChar = pillService?.getCharacteristic(CUP_STATE_UUID)
+            if (cupChar != null) {
+                enqueueCommand(BleCommand.EnableNotify(cupChar))
             } else {
-                Log.w(TAG, "Button characteristic not found, continuing without button notifications")
+                Log.w(TAG, "Cup State characteristic not found")
+            }
+
+            // Read initial battery level
+            val batService = gatt.getService(BATTERY_SERVICE_UUID)
+            val batChar = batService?.getCharacteristic(BATTERY_LEVEL_UUID)
+            if (batChar != null) {
+                enqueueCommand(BleCommand.Read(batChar))
             }
 
             // Signal that connection is alive
@@ -159,13 +189,17 @@ class NrfBleManager(private val context: Context) {
             characteristic: BluetoothGattCharacteristic
         ) {
             when (characteristic.uuid) {
-                ACCEL_CHAR_UUID -> {
-                    val value = characteristic.value?.let { String(it) } ?: ""
-                    onAccelData?.invoke(value)
+                TEMPERATURE_UUID -> {
+                    // BLE format: sint16, resolution 0.01 °C
+                    val raw = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, 0)
+                    val tempCelsius = (raw ?: 0) / 100.0f
+                    Log.d(TAG, "Temperature notification: $tempCelsius °C")
+                    onTemperatureData?.invoke(tempCelsius)
                 }
-                BUTTON_CHAR_UUID -> {
-                    Log.i(TAG, "Button press notification received!")
-                    onButtonPress?.invoke()
+                CUP_STATE_UUID -> {
+                    val state = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, 0) ?: 0
+                    Log.d(TAG, "Cup state notification: $state (bin: ${Integer.toBinaryString(state)})")
+                    onCupStateChanged?.invoke(state)
                 }
             }
         }
@@ -178,10 +212,25 @@ class NrfBleManager(private val context: Context) {
             status: Int
         ) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                val value = characteristic.value?.let { String(it) } ?: ""
-                Log.i(TAG, "Read value: $value")
-                onReadResult?.invoke(value)
-                onReadResult = null
+                when (characteristic.uuid) {
+                    BATTERY_LEVEL_UUID -> {
+                        val level = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0) ?: 0
+                        Log.i(TAG, "Battery level: $level%")
+                        onBatteryLevel?.invoke(level)
+                    }
+                    CUP_STATE_UUID -> {
+                        val state = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, 0) ?: 0
+                        Log.i(TAG, "Cup state read: $state")
+                        onReadResult?.invoke(state.toString())
+                        onReadResult = null
+                    }
+                    else -> {
+                        val value = characteristic.value?.let { String(it) } ?: ""
+                        Log.i(TAG, "Read value: $value")
+                        onReadResult?.invoke(value)
+                        onReadResult = null
+                    }
+                }
             } else {
                 Log.e(TAG, "Read failed, status: $status")
                 onError?.invoke("Read failed with status $status")
@@ -196,7 +245,7 @@ class NrfBleManager(private val context: Context) {
             status: Int
         ) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.i(TAG, "Write successful")
+                Log.i(TAG, "Write successful to ${characteristic.uuid}")
                 onWriteResult?.invoke(true)
                 onWriteResult = null
             } else {
@@ -223,15 +272,13 @@ class NrfBleManager(private val context: Context) {
     // ─── Public API ─────────────────────────────────────────────────
 
     /**
-     * Automatically scan for XIAO_Sense_Accel, connect, and stay connected.
-     * This is the single entry point — no manual scan or address needed.
+     * Automatically scan for XIAO_Pill_Box, connect, and stay connected.
      */
     @SuppressLint("MissingPermission")
     fun connectToXiao(
         onResult: (Boolean) -> Unit,
         onFail: (String) -> Unit
     ) {
-        // Enable auto-reconnect from now on
         shouldAutoReconnect = true
 
         val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -247,7 +294,6 @@ class NrfBleManager(private val context: Context) {
             return
         }
 
-        // Store callbacks for later use during connection
         onConnectResult = onResult
         onError = onFail
 
@@ -261,11 +307,10 @@ class NrfBleManager(private val context: Context) {
                     Log.d(TAG, "Scanned: name=$name, addr=${result.device.address}")
                 }
 
-                if (name == "XIAO_Sense_Accel") {
-                    Log.i(TAG, "Found XIAO device: ${result.device.address}, connecting...")
+                if (name == "XIAO_Pill_Box") {
+                    Log.i(TAG, "Found XIAO_Pill_Box: ${result.device.address}, connecting...")
                     stopScan()
 
-                    // Immediately connect to the found device
                     synchronized(this@NrfBleManager) {
                         commandQueue.clear()
                         isCommandInProgress = false
@@ -286,7 +331,7 @@ class NrfBleManager(private val context: Context) {
             .build()
 
         bleScanner?.startScan(null, settings, scanCallback)
-        Log.i(TAG, "BLE scan started, looking for XIAO_Sense_Accel...")
+        Log.i(TAG, "BLE scan started, looking for XIAO_Pill_Box...")
     }
 
     @SuppressLint("MissingPermission")
@@ -299,8 +344,7 @@ class NrfBleManager(private val context: Context) {
     }
 
     /**
-     * Disconnect from the device gracefully.
-     * Disables auto-reconnect.
+     * Disconnect gracefully. Disables auto-reconnect.
      */
     @SuppressLint("MissingPermission")
     fun disconnect() {
@@ -313,37 +357,14 @@ class NrfBleManager(private val context: Context) {
         }
     }
 
-    /**
-     * Read accelerometer once (one-shot read instead of notification).
-     * The device must already be connected.
-     */
-    fun readAccelerometer(
-        onResult: (String) -> Unit,
-        onFail: (String) -> Unit
-    ) {
-        val gatt = bluetoothGatt
-        if (gatt == null) {
-            onFail("Not connected")
-            return
-        }
-
-        val service = gatt.getService(SERVICE_UUID)
-        val accelChar = service?.getCharacteristic(ACCEL_CHAR_UUID)
-        if (accelChar == null) {
-            onFail("Accelerometer characteristic not found")
-            return
-        }
-
-        onReadResult = onResult
-        onError = onFail
-        enqueueCommand(BleCommand.Read(accelChar))
-    }
+    // ─── Time Sync ─────────────────────────────────────────────────
 
     /**
-     * Write LED state. Device must already be connected.
+     * Sync current time from phone to XIAO.
+     * Writes 10 bytes to Current Time characteristic (0x2A2B):
+     *   [year_lo, year_hi, month, day, hours, minutes, seconds, day_of_week, fractions, adjust_reason]
      */
-    fun writeLed(
-        on: Boolean,
+    fun syncTime(
         onResult: (Boolean) -> Unit,
         onFail: (String) -> Unit
     ) {
@@ -353,17 +374,194 @@ class NrfBleManager(private val context: Context) {
             return
         }
 
-        val service = gatt.getService(SERVICE_UUID)
-        val ledChar = service?.getCharacteristic(LED_CHAR_UUID)
-        if (ledChar == null) {
-            onFail("LED characteristic not found")
+        val timeService = gatt.getService(TIME_SERVICE_UUID)
+        val timeChar = timeService?.getCharacteristic(CURRENT_TIME_UUID)
+        if (timeChar == null) {
+            onFail("Current Time characteristic not found")
             return
         }
 
-        val value = if (on) "1" else "0"
+        val cal = java.util.Calendar.getInstance()
+        val year = cal.get(java.util.Calendar.YEAR)
+        val month = cal.get(java.util.Calendar.MONTH) + 1
+        val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
+        val hours = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        val minutes = cal.get(java.util.Calendar.MINUTE)
+        val seconds = cal.get(java.util.Calendar.SECOND)
+        val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
+        
+        val data = byteArrayOf(
+            (year and 0xFF).toByte(),
+            ((year shr 8) and 0xFF).toByte(),
+            month.toByte(),
+            day.toByte(),
+            hours.toByte(),
+            minutes.toByte(),
+            seconds.toByte(),
+            dayOfWeek.toByte(),
+            0, // fractions256
+            0  // adjust reason
+        )
+
         onWriteResult = onResult
         onError = onFail
-        enqueueCommand(BleCommand.Write(ledChar, value.toByteArray()))
+        enqueueCommand(BleCommand.Write(timeChar, data))
+    }
+
+    // ─── Alarm Interval ────────────────────────────────────────────
+
+    /**
+     * Set alarm repeat interval in seconds (uint32, 4 bytes).
+     */
+    fun setAlarmInterval(
+        seconds: Int,
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(PILL_SERVICE_UUID)
+        val char = service?.getCharacteristic(ALARM_INTERVAL_UUID) ?: run {
+            onFail("Alarm Interval characteristic not found"); return
+        }
+
+        val data = byteArrayOf(
+            (seconds and 0xFF).toByte(),
+            ((seconds shr 8) and 0xFF).toByte(),
+            ((seconds shr 16) and 0xFF).toByte(),
+            ((seconds shr 24) and 0xFF).toByte()
+        )
+
+        onWriteResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Write(char, data))
+    }
+
+    // ─── Alarm Morning / Evening ───────────────────────────────────
+
+    /**
+     * Set morning alarm time (2 bytes: hour, second).
+     */
+    fun setAlarmMorning(
+        hour: Int,
+        second: Int,
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(PILL_SERVICE_UUID)
+        val char = service?.getCharacteristic(ALARM_MORNING_UUID) ?: run {
+            onFail("Alarm Morning characteristic not found"); return
+        }
+
+        val data = byteArrayOf(hour.toByte(), second.toByte())
+        onWriteResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Write(char, data))
+    }
+
+    /**
+     * Set evening alarm time (2 bytes: hour, second).
+     */
+    fun setAlarmEvening(
+        hour: Int,
+        second: Int,
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(PILL_SERVICE_UUID)
+        val char = service?.getCharacteristic(ALARM_EVENING_UUID) ?: run {
+            onFail("Alarm Evening characteristic not found"); return
+        }
+
+        val data = byteArrayOf(hour.toByte(), second.toByte())
+        onWriteResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Write(char, data))
+    }
+
+    // ─── Cup State ─────────────────────────────────────────────────
+
+    /**
+     * Read current cup state (14 bits in 2 bytes).
+     */
+    fun readCupState(
+        onResult: (String) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(PILL_SERVICE_UUID)
+        val char = service?.getCharacteristic(CUP_STATE_UUID) ?: run {
+            onFail("Cup State characteristic not found"); return
+        }
+
+        onReadResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Read(char))
+    }
+
+    /**
+     * Write new cup state (14 bits in 2 bytes).
+     */
+    fun writeCupState(
+        state: Int,
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(PILL_SERVICE_UUID)
+        val char = service?.getCharacteristic(CUP_STATE_UUID) ?: run {
+            onFail("Cup State characteristic not found"); return
+        }
+
+        val data = byteArrayOf(
+            (state and 0xFF).toByte(),
+            ((state shr 8) and 0xFF).toByte()
+        )
+
+        onWriteResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Write(char, data))
+    }
+
+    // ─── Find My ───────────────────────────────────────────────────
+
+    /**
+     * Trigger Find My — write any byte to make the XIAO blink its red LED.
+     */
+    fun findMy(
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(PILL_SERVICE_UUID)
+        val char = service?.getCharacteristic(FIND_MY_UUID) ?: run {
+            onFail("Find My characteristic not found"); return
+        }
+
+        onWriteResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Write(char, byteArrayOf(0x01)))
+    }
+
+    // ─── Read Battery ──────────────────────────────────────────────
+
+    /**
+     * Read battery level (one-shot).
+     */
+    fun readBattery(
+        onResult: (String) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(BATTERY_SERVICE_UUID)
+        val char = service?.getCharacteristic(BATTERY_LEVEL_UUID) ?: run {
+            onFail("Battery Level characteristic not found"); return
+        }
+
+        onReadResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Read(char))
     }
 
     // ─── Private helpers ────────────────────────────────────────────
@@ -436,10 +634,8 @@ class NrfBleManager(private val context: Context) {
                 }
             }
             is BleCommand.EnableNotify -> {
-                // Tell Android to listen for notifications from this characteristic
                 gatt.setCharacteristicNotification(nextCommand.characteristic, true)
 
-                // Write to CCCD descriptor to tell the peripheral to start sending
                 val descriptor = nextCommand.characteristic.getDescriptor(CCCD_UUID)
                 if (descriptor != null) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
