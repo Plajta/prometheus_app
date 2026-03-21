@@ -1,48 +1,115 @@
 import ExpoModulesCore
 
 public class BleWrapperModule: Module {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
+  private let nrfManager = NrfBleManager()
+
   public func definition() -> ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('BleWrapper')` in JavaScript.
     Name("BleWrapper")
 
-    // Defines constant property on the module.
-    Constant("PI") {
-      Double.pi
-    }
+    Events(
+      "onTemperatureData",
+      "onBatteryLevel",
+      "onCupStateChanged",
+      "onDeviceConnected",
+      "onDeviceDisconnected"
+    )
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      return "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { (value: String) in
-      // Send an event to JavaScript.
-      self.sendEvent("onChange", [
-        "value": value
-      ])
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of the
-    // view definition: Prop, Events.
-    View(BleWrapperView.self) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { (view: BleWrapperView, url: URL) in
-        if view.webView.url != url {
-          view.webView.load(URLRequest(url: url))
-        }
+    OnCreate {
+      nrfManager.onTemperatureData = { [weak self] temp in
+        self?.sendEvent("onTemperatureData", ["temperature": temp])
       }
+      nrfManager.onBatteryLevel = { [weak self] level in
+        self?.sendEvent("onBatteryLevel", ["level": level])
+      }
+      nrfManager.onCupStateChanged = { [weak self] state in
+        self?.sendEvent("onCupStateChanged", ["state": state])
+      }
+      nrfManager.onDeviceConnected = { [weak self] in
+        self?.sendEvent("onDeviceConnected", ["connected": true])
+      }
+      nrfManager.onDeviceDisconnected = { [weak self] in
+        self?.sendEvent("onDeviceDisconnected", ["connected": false])
+      }
+    }
 
-      Events("onLoad")
+    AsyncFunction("connectToXiao") { (promise: Promise) in
+      nrfManager.connectToXiao(
+        onResult: { success in
+          if success { promise.resolve() } else { promise.reject("CONNECT_ERROR", "Connection failed") }
+        },
+        onFail: { error in promise.reject("CONNECT_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("disconnect") {
+      nrfManager.disconnect()
+    }
+
+    AsyncFunction("syncTime") { (promise: Promise) in
+      nrfManager.syncTime(
+        onResult: { _ in promise.resolve() },
+        onFail: { error in promise.reject("WRITE_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("setAlarmInterval") { (seconds: Int, promise: Promise) in
+      nrfManager.setAlarmInterval(seconds: seconds,
+        onResult: { _ in promise.resolve() },
+        onFail: { error in promise.reject("WRITE_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("setAlarmMorning") { (hour: Int, second: Int, promise: Promise) in
+      nrfManager.setAlarmMorning(hour: hour, second: second,
+        onResult: { _ in promise.resolve() },
+        onFail: { error in promise.reject("WRITE_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("setAlarmEvening") { (hour: Int, second: Int, promise: Promise) in
+      nrfManager.setAlarmEvening(hour: hour, second: second,
+        onResult: { _ in promise.resolve() },
+        onFail: { error in promise.reject("WRITE_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("readCupState") { (promise: Promise) in
+      nrfManager.readCupState(
+        onResult: { value in promise.resolve(value) },
+        onFail: { error in promise.reject("READ_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("writeCupState") { (state: Int, promise: Promise) in
+      nrfManager.writeCupState(state: state,
+        onResult: { _ in promise.resolve() },
+        onFail: { error in promise.reject("WRITE_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("setAlertsEnabled") { (enabled: Bool, promise: Promise) in
+      nrfManager.setAlertsEnabled(enabled: enabled,
+        onResult: { _ in promise.resolve() },
+        onFail: { error in promise.reject("WRITE_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("findMy") { (promise: Promise) in
+      nrfManager.findMy(
+        onResult: { _ in promise.resolve() },
+        onFail: { error in promise.reject("WRITE_ERROR", error) }
+      )
+    }
+
+    AsyncFunction("readBattery") { (promise: Promise) in
+      nrfManager.readBattery(
+        onResult: { value in promise.resolve(value) },
+        onFail: { error in promise.reject("READ_ERROR", error) }
+      )
+    }
+
+    Function("isConnected") { () -> Bool in
+      return nrfManager.isConnected
     }
   }
 }
