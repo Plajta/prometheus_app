@@ -11,14 +11,13 @@ import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
 function SlotCell({ slot }: { slot: Slot }) {
 	const bgClass = slot.taken
 		? "bg-green-100 border-green-500 dark:bg-green-900/40 dark:border-green-500"
-		: "bg-red-100 border-red-500 dark:bg-red-900/40 dark:border-red-500";
-	const textClass = slot.taken ? "text-green-800 dark:text-green-200" : "text-red-800 dark:text-red-200";
-	const subTextClass = slot.taken ? "text-green-600 dark:text-green-500" : "text-red-500 dark:text-red-400";
-	const dotClass = slot.taken ? "bg-green-500" : "bg-red-500";
-	const borderW = slot.taken ? "border-[1.5px]" : "border";
+		: "bg-zinc-100 border-zinc-300 dark:bg-zinc-800/40 dark:border-zinc-700";
+	const textClass = slot.taken ? "text-green-800 dark:text-green-200" : "text-zinc-500 dark:text-zinc-400";
+	const subTextClass = slot.taken ? "text-green-600 dark:text-green-500" : "text-zinc-400 dark:text-zinc-500";
+	const dotClass = slot.taken ? "bg-green-500" : "bg-zinc-400 dark:bg-zinc-500";
 
 	return (
-		<View className={`flex-1 flex-row items-center gap-2 rounded-xl px-2.5 py-1 ${bgClass} ${borderW}`}>
+		<View className={`flex-1 flex-row items-center gap-2 rounded-xl px-2.5 py-1 opacity-50 ${bgClass} border`}>
 			<View className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
 			<View className="flex-1 gap-0.5">
 				<Text className={`text-[9px] font-bold tracking-widest ${subTextClass}`}>{slot.id}</Text>
@@ -31,8 +30,8 @@ function SlotCell({ slot }: { slot: Slot }) {
 }
 
 const LEGEND = [
-	{ color: "#22c55e", label: "vyzvednuto" },
-	{ color: "#ef4444", label: "nevyzvednuto" },
+	{ color: "#22c55e", label: "vybrano" },
+	{ color: "#a1a1aa", label: "nevybrano" },
 ] as const;
 
 export default function DeviceScreen() {
@@ -83,7 +82,7 @@ export default function DeviceScreen() {
 					<View className="mt-3.5 flex-row justify-center gap-5">
 						{LEGEND.map((item) => (
 							<View key={item.label} className="flex-row items-center gap-1.5">
-								<View style={{ backgroundColor: item.color }} className="h-2 w-2 rounded-sm" />
+								<View style={{ backgroundColor: item.color }} className="h-2 w-2 rounded-sm opacity-50" />
 								<Text className="text-zinc-500 text-[11px]">{item.label}</Text>
 							</View>
 						))}
@@ -92,12 +91,11 @@ export default function DeviceScreen() {
 					<View className="mt-8 flex-row mx-4 gap-3">
 						<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 							<View className="mb-2 flex-row items-center gap-2">
-								<View className="h-8 w-8 items-center justify-center rounded-full bg-green-500/15">
+								<View className="h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
 									<Ionicons
 										name="battery-half"
-										size={16}
-										color="white"
-										className="text-green-600 dark:text-green-500"
+										size={20}
+										color="#22c55e"
 									/>
 								</View>
 								<Text className="text-zinc-500 text-[13px] font-semibold tracking-wide">BATERIE</Text>
@@ -109,12 +107,11 @@ export default function DeviceScreen() {
 
 						<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 							<View className="mb-2 flex-row items-center gap-2">
-								<View className="h-8 w-8 items-center justify-center rounded-full bg-orange-500/15">
+								<View className="h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
 									<Ionicons
 										name="thermometer"
-										size={16}
-										color="white"
-										className="text-orange-600 dark:text-orange-500"
+										size={20}
+										color="#f97316"
 									/>
 								</View>
 								<Text className="text-zinc-500 text-[13px] font-semibold tracking-wide">TEPLOTA</Text>
