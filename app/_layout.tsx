@@ -43,57 +43,57 @@ export default function Layout() {
 						console.error("Bluetooth permissions denied");
 						return;
 					}
-
-					await BleWrapperModule.connectToXiao();
 				}
+
+				await BleWrapperModule.connectToXiao();
 			} catch (e) {
 				console.error(e);
 			}
 		})();
 
-		if (Platform.OS === "android") {
-			useBleDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
+		// if (Platform.OS === "android") {
+		useBleDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
-			const connSub = BleWrapperModule.addListener("onDeviceConnected", async (event) => {
-				useBleDeviceStore.getState().setIsConnected(event.connected);
-				if (event.connected) {
-					try {
-						const stateStr = await BleWrapperModule.readCupState();
-						useBleDeviceStore.getState().setCupState(parseInt(stateStr, 10));
-						const batteryStr = await BleWrapperModule.readBattery();
-						useBleDeviceStore.getState().setBattery(parseInt(batteryStr, 10));
-					} catch (e) {
-						console.error("Failed to read initial state on connect:", e);
-					}
+		const connSub = BleWrapperModule.addListener("onDeviceConnected", async (event) => {
+			useBleDeviceStore.getState().setIsConnected(event.connected);
+			if (event.connected) {
+				try {
+					const stateStr = await BleWrapperModule.readCupState();
+					useBleDeviceStore.getState().setCupState(parseInt(stateStr, 10));
+					const batteryStr = await BleWrapperModule.readBattery();
+					useBleDeviceStore.getState().setBattery(parseInt(batteryStr, 10));
+				} catch (e) {
+					console.error("Failed to read initial state on connect:", e);
 				}
-			});
+			}
+		});
 
-			const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
-				useBleDeviceStore.getState().setIsConnected(event.connected);
-			});
+		const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
+			useBleDeviceStore.getState().setIsConnected(event.connected);
+		});
 
-			const tempSub = BleWrapperModule.addListener("onTemperatureData", (event) => {
-				useBleDeviceStore.getState().setTemperature(event.temperature);
-			});
+		const tempSub = BleWrapperModule.addListener("onTemperatureData", (event) => {
+			useBleDeviceStore.getState().setTemperature(event.temperature);
+		});
 
-			const batterySub = BleWrapperModule.addListener("onBatteryLevel", (event) => {
-				useBleDeviceStore.getState().setBattery(event.level);
-			});
+		const batterySub = BleWrapperModule.addListener("onBatteryLevel", (event) => {
+			useBleDeviceStore.getState().setBattery(event.level);
+		});
 
-			const cupSub = BleWrapperModule.addListener("onCupStateChanged", (event) => {
-				useBleDeviceStore.getState().setCupState(event.state);
-			});
+		const cupSub = BleWrapperModule.addListener("onCupStateChanged", (event) => {
+			useBleDeviceStore.getState().setCupState(event.state);
+		});
 
-			return () => {
-				connSub.remove();
-				disconnSub.remove();
-				tempSub.remove();
-				batterySub.remove();
-				cupSub.remove();
-			};
-		} else {
-			useBleDeviceStore.getState().setIsConnected(true);
-		}
+		return () => {
+			connSub.remove();
+			disconnSub.remove();
+			tempSub.remove();
+			batterySub.remove();
+			cupSub.remove();
+		};
+		// } else {
+		// 	useBleDeviceStore.getState().setIsConnected(true);
+		// }
 	}, []);
 
 	return (

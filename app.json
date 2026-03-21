@@ -23,6 +23,11 @@
 				{
 					"android": {
 						"usesCleartextTraffic": true
+					},
+					"ios": {
+						"infoPlist": {
+							"NSBluetoothAlwaysUsageDescription": "Aplikace potřebuje Bluetooth pro připojení k pillboxu"
+						}
 					}
 				}
 			]

@@ -54,8 +54,9 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     // MARK: - Initialization
     override init() {
         super.init()
-        // Initialize CoreBluetooth queue
-        centralManager = CBCentralManager(delegate: self, queue: nil)
+        print("[NrfBleManager] init called, creating CBCentralManager...")
+        centralManager = CBCentralManager(delegate: self, queue: DispatchQueue.main)
+        print("[NrfBleManager] CBCentralManager created, delegate: \(centralManager.delegate != nil)")
     }
     
     // MARK: - Public API
@@ -65,15 +66,16 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         connectResolver = onResult
         connectRejecter = onFail
         
-        if centralManager.state == .poweredOn {
+        switch centralManager.state {
+        case .poweredOn:
             print("[NrfBleManager] Starting BLE Scan for XIAO_Pill_Box...")
             centralManager.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
-        } else if centralManager.state == .unauthorized || centralManager.state == .unsupported {
+        case .unauthorized, .unsupported:
             onFail("Bluetooth is not authorized or supported.")
             connectResolver = nil
             connectRejecter = nil
-        } else {
-            // .unknown or .resetting means we just have to wait for centralManagerDidUpdateState
+        default:
+            // .unknown nebo .resetting – počkáme na centralManagerDidUpdateState
             print("[NrfBleManager] Central state is \(centralManager.state.rawValue), waiting for update to poweredOn...")
         }
     }
@@ -92,7 +94,6 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     func syncTime(onResult: @escaping (Bool) -> Void, onFail: @escaping (String) -> Void) {
         let date = Date()
         let calendar = Calendar.current
-        
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second, .weekday], from: date)
         
         let year = UInt16(components.year ?? 2026)
@@ -158,7 +159,7 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     
     func findMy(onResult: @escaping (Bool) -> Void, onFail: @escaping (String) -> Void) {
         let data = Data([1])
-        write(to: Constants.FIND_MY_UUID, serviceUUID: Constants.PILL_SERVICE_UUID, data: data, onResult: onResult, onFail: onFail, type: .withoutResponse) // find my might be withoutResponse, but usually write is fine
+        write(to: Constants.FIND_MY_UUID, serviceUUID: Constants.PILL_SERVICE_UUID, data: data, onResult: onResult, onFail: onFail)
     }
     
     func readBattery(onResult: @escaping (String) -> Void, onFail: @escaping (String) -> Void) {
@@ -210,17 +211,31 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     // MARK: - CBCentralManagerDelegate
     
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn && shouldAutoReconnect && peripheral == nil {
-            // Started powered on, auto reconnect was requested but we are not connected
-            print("[NrfBleManager] Central powered on, starting scan for auto-reconnect...")
-            central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
-        } else if central.state != .poweredOn {
-            print("[NrfBleManager] Bluetooth powered off or unauthorized.")
-            if let fail = connectRejecter {
-                fail("Bluetooth is not enabled (.poweredOn).")
-                connectRejecter = nil
-                connectResolver = nil
+        switch central.state {
+        case .poweredOn:
+            print("[NrfBleManager] Bluetooth powered on")
+            // Pokud čekáme na připojení a ještě nejsme připojeni, spusť scan
+            if shouldAutoReconnect && peripheral == nil {
+                print("[NrfBleManager] Starting scan after poweredOn...")
+                central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
             }
+        case .unauthorized:
+            print("[NrfBleManager] Bluetooth unauthorized")
+            connectRejecter?("Bluetooth is not authorized.")
+            connectRejecter = nil
+            connectResolver = nil
+        case .unsupported:
+            print("[NrfBleManager] Bluetooth unsupported")
+            connectRejecter?("Bluetooth is not supported.")
+            connectRejecter = nil
+            connectResolver = nil
+        case .poweredOff:
+            print("[NrfBleManager] Bluetooth powered off")
+            connectRejecter?("Bluetooth is powered off.")
+            connectRejecter = nil
+            connectResolver = nil
+        default:
+            print("[NrfBleManager] Bluetooth state: \(central.state.rawValue)")
         }
     }
     
@@ -252,10 +267,8 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         print("[NrfBleManager] Disconnected from peripheral: \(error?.localizedDescription ?? "Graceful")")
         onDeviceDisconnected?()
         
-        // Auto Reconnect logic - iOS will keep trying to connect if we just call connect
         if shouldAutoReconnect {
             print("[NrfBleManager] Auto-reconnect active, pending connection...")
-            // Natively, iOS will auto-connect as soon as it's seen again when we tell it to connect blindly
             central.connect(peripheral, options: nil)
         } else {
             self.peripheral = nil
@@ -280,28 +293,21 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        guard let characteristics = service.characteristics else { return }
+        guard let _ = service.characteristics else { return }
         
-        var servicesDiscoveredComplete = true
-        for s in peripheral.services ?? [] {
-            if s.characteristics == nil {
-                servicesDiscoveredComplete = false
-                break
-            }
-        }
+        let servicesDiscoveredComplete = peripheral.services?.allSatisfy { $0.characteristics != nil } ?? false
         
-        // Subscribe to notifications
-        for characteristic in characteristics {
+        // Subscribe to notifications + initial reads
+        for characteristic in service.characteristics ?? [] {
             if characteristic.uuid == Constants.TEMPERATURE_UUID || characteristic.uuid == Constants.CUP_STATE_UUID {
                 peripheral.setNotifyValue(true, for: characteristic)
             }
             if characteristic.uuid == Constants.BATTERY_LEVEL_UUID {
-                peripheral.readValue(for: characteristic) // Read initial battery
+                peripheral.readValue(for: characteristic)
             }
         }
         
         if servicesDiscoveredComplete {
-            // We have discovered characteristics for all services
             print("[NrfBleManager] All characteristics discovered, ready to use!")
             onDeviceConnected?()
             connectResolver?(true)
@@ -331,8 +337,6 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             guard data.count >= 2 else { return }
             let state = Int(data[0]) | (Int(data[1]) << 8)
             onCupStateChanged?(state)
-            
-            // If it was a pending manual read callback
             if let cb = pendingReads[Constants.CUP_STATE_UUID] {
                 cb(state)
                 pendingReads.removeValue(forKey: Constants.CUP_STATE_UUID)
@@ -343,7 +347,6 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             guard data.count >= 1 else { return }
             let level = Int(data[0])
             onBatteryLevel?(level)
-            
             if let cb = pendingReads[Constants.BATTERY_LEVEL_UUID] {
                 cb(level)
                 pendingReads.removeValue(forKey: Constants.BATTERY_LEVEL_UUID)
@@ -351,7 +354,6 @@ class NrfBleManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             }
             
         default:
-            // Generic string resolution for unknowns (if any)
             if let str = String(data: data, encoding: .utf8), let cb = pendingReads[characteristic.uuid] {
                 cb(str)
                 pendingReads.removeValue(forKey: characteristic.uuid)
