@@ -52,15 +52,7 @@ export default function TabsLayout() {
 					),
 				}}
 			/>
-			<Tabs.Screen
-				name="medications"
-				options={{
-					title: "Léky",
-					tabBarIcon: ({ focused, color }) => (
-						<TabIcon name="medkit" outlineName="medkit-outline" focused={focused} color={color} />
-					),
-				}}
-			/>
+
 			<Tabs.Screen
 				name="device"
 				options={{
@@ -75,15 +67,7 @@ export default function TabsLayout() {
 					),
 				}}
 			/>
-			<Tabs.Screen
-				name="overview"
-				options={{
-					title: "Přehled",
-					tabBarIcon: ({ focused, color }) => (
-						<TabIcon name="stats-chart" outlineName="stats-chart-outline" focused={focused} color={color} />
-					),
-				}}
-			/>
+
 			<Tabs.Screen
 				name="settings"
 				options={{
