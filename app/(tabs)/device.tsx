@@ -16,10 +16,9 @@ interface Slot {
 	status: CStatus;
 }
 
-// Column A (left), Column B (right) — 7 rows each
 const COL_A: Slot[] = [
-	{ id: "A1", name: "Metformin",    strength: "500 mg", status: "active" },
-	{ id: "A2", name: "Atorvastatin", strength: "20 mg",  status: "active" },
+	{ id: "A1", name: "Metformin", strength: "500 mg", status: "active" },
+	{ id: "A2", name: "Atorvastatin", strength: "20 mg", status: "active" },
 	{ id: "A3", status: "empty" },
 	{ id: "A4", status: "empty" },
 	{ id: "A5", status: "empty" },
@@ -28,21 +27,19 @@ const COL_A: Slot[] = [
 ];
 
 const COL_B: Slot[] = [
-	{ id: "B1", name: "Ramipril",   strength: "5 mg",   status: "active" },
-	{ id: "B2", name: "Metformin",  strength: "500 mg", status: "low"    },
+	{ id: "B1", name: "Ramipril", strength: "5 mg", status: "active" },
+	{ id: "B2", name: "Metformin", strength: "500 mg", status: "low" },
 	{ id: "B3", status: "empty" },
 	{ id: "B4", status: "empty" },
 	{ id: "B5", status: "empty" },
 	{ id: "B6", status: "empty" },
-	{ id: "B7", name: "Amlodipine", strength: "10 mg",  status: "paused" },
+	{ id: "B7", name: "Amlodipine", strength: "10 mg", status: "paused" },
 ];
 
-// ─── Sizing ────────────────────────────────────────────────────────────────────
-
-const H_MARGIN  = 16;
+const H_MARGIN = 16;
 const INNER_PAD = 12;
-const COL_GAP   = 6;   // gap between the two columns
-const ROW_GAP   = 5;   // gap between rows
+const COL_GAP = 6; // gap between the two columns
+const ROW_GAP = 5; // gap between rows
 
 const CELL_W = (SW - H_MARGIN * 2 - INNER_PAD * 2 - COL_GAP) / 2;
 const CELL_H = 58;
@@ -51,19 +48,17 @@ const CELL_H = 58;
 
 const DARK: Record<CStatus, { bg: string; border: string; text: string; sub: string; dot: string }> = {
 	active: { bg: "#0a2420", border: "#14b8a6", text: "#ccfbf1", sub: "#2dd4bf", dot: "#14b8a6" },
-	low:    { bg: "#241a07", border: "#f59e0b", text: "#fef3c7", sub: "#f59e0b", dot: "#f59e0b" },
+	low: { bg: "#241a07", border: "#f59e0b", text: "#fef3c7", sub: "#f59e0b", dot: "#f59e0b" },
 	paused: { bg: "#141414", border: "#3f3f46", text: "#a1a1aa", sub: "#52525b", dot: "#52525b" },
-	empty:  { bg: "#111113", border: "#1e1e21", text: "#3f3f46", sub: "#252528", dot: "transparent" },
+	empty: { bg: "#111113", border: "#1e1e21", text: "#3f3f46", sub: "#252528", dot: "transparent" },
 };
 
 const LIGHT: Record<CStatus, { bg: string; border: string; text: string; sub: string; dot: string }> = {
 	active: { bg: "#e6faf7", border: "#14b8a6", text: "#0d4a3f", sub: "#0d9488", dot: "#14b8a6" },
-	low:    { bg: "#fffbeb", border: "#f59e0b", text: "#713f12", sub: "#d97706", dot: "#f59e0b" },
+	low: { bg: "#fffbeb", border: "#f59e0b", text: "#713f12", sub: "#d97706", dot: "#f59e0b" },
 	paused: { bg: "#f4f4f5", border: "#d4d4d8", text: "#71717a", sub: "#a1a1aa", dot: "#a1a1aa" },
-	empty:  { bg: "#f0f0f1", border: "#e4e4e7", text: "#c4c4c6", sub: "#e0e0e2", dot: "transparent" },
+	empty: { bg: "#f0f0f1", border: "#e4e4e7", text: "#c4c4c6", sub: "#e0e0e2", dot: "transparent" },
 };
-
-// ─── Cell — wide horizontal layout ────────────────────────────────────────────
 
 function SlotCell({ slot, isDark }: { slot: Slot; isDark: boolean }) {
 	const c = (isDark ? DARK : LIGHT)[slot.status];
@@ -85,7 +80,6 @@ function SlotCell({ slot, isDark }: { slot: Slot; isDark: boolean }) {
 				gap: 8,
 			}}
 		>
-			{/* Status dot */}
 			<View
 				style={{
 					width: 7,
@@ -96,32 +90,22 @@ function SlotCell({ slot, isDark }: { slot: Slot; isDark: boolean }) {
 				}}
 			/>
 
-			{/* Text content */}
 			<View style={{ flex: 1, gap: 2 }}>
-				<Text style={{ color: c.sub, fontSize: 9, fontWeight: "700", letterSpacing: 0.5 }}>
-					{slot.id}
-				</Text>
+				<Text style={{ color: c.sub, fontSize: 9, fontWeight: "700", letterSpacing: 0.5 }}>{slot.id}</Text>
 				{filled ? (
-					<Text
-						style={{ color: c.text, fontSize: 12, fontWeight: "600", lineHeight: 15 }}
-						numberOfLines={1}
-					>
+					<Text style={{ color: c.text, fontSize: 12, fontWeight: "600", lineHeight: 15 }} numberOfLines={1}>
 						{slot.name}
 					</Text>
 				) : (
 					<Text style={{ color: c.sub, fontSize: 11 }}>—</Text>
 				)}
 				{filled && slot.strength && (
-					<Text style={{ color: c.sub, fontSize: 10, fontWeight: "500" }}>
-						{slot.strength}
-					</Text>
+					<Text style={{ color: c.sub, fontSize: 10, fontWeight: "500" }}>{slot.strength}</Text>
 				)}
 			</View>
 		</View>
 	);
 }
-
-// ─── Stat pill ────────────────────────────────────────────────────────────────
 
 function StatPill({
 	icon,
@@ -150,20 +134,16 @@ function StatPill({
 			}}
 		>
 			<Ionicons name={icon} size={20} color={iconColor} />
-			<Text style={{ color: isDark ? "#ffffff" : "#18181b", fontSize: 16, fontWeight: "700" }}>
-				{value}
-			</Text>
+			<Text style={{ color: isDark ? "#ffffff" : "#18181b", fontSize: 16, fontWeight: "700" }}>{value}</Text>
 			<Text style={{ color: "#71717a", fontSize: 11, textAlign: "center" }}>{label}</Text>
 		</View>
 	);
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 const LEGEND = [
 	{ color: "#14b8a6", label: "aktivní" },
 	{ color: "#f59e0b", label: "dochází" },
-	{ color: "#71717a", label: "pauza"   },
+	{ color: "#71717a", label: "pauza" },
 ] as const;
 
 const filledCount = [...COL_A, ...COL_B].filter((s) => s.status !== "empty").length;
@@ -171,106 +151,102 @@ const filledCount = [...COL_A, ...COL_B].filter((s) => s.status !== "empty").len
 export default function DeviceScreen() {
 	const isDark = useColorScheme() === "dark";
 
-	const deviceBg     = isDark ? "#141417" : "#f4f4f5";
+	const deviceBg = isDark ? "#141417" : "#f4f4f5";
 	const deviceBorder = isDark ? "#2e2e33" : "#d4d4d8";
-	const textPrimary  = isDark ? "#ffffff"  : "#18181b";
+	const textPrimary = isDark ? "#ffffff" : "#18181b";
 
 	return (
 		<SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#09090b" : "#fafafa" }}>
-			<StatusBar style={isDark ? "light" : "dark"} />
-			<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-
-				{/* Header */}
-				<View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18 }}>
-					<View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-						<View>
-							<Text style={{ color: textPrimary, fontSize: 22, fontWeight: "700" }}>
-								Lékovka Alpha
-							</Text>
-							<Text style={{ color: "#71717a", fontSize: 13, marginTop: 2 }}>
-								{filledCount} z 14 přihrádek obsazeno
-							</Text>
-						</View>
-						<View
-							style={{
-								flexDirection: "row",
-								alignItems: "center",
-								gap: 6,
-								paddingHorizontal: 12,
-								paddingVertical: 8,
-								borderRadius: 12,
-								backgroundColor: isDark ? "#0a2420" : "#e6faf7",
-								borderWidth: 1,
-								borderColor: isDark ? "#14b8a640" : "#99f6e4",
-							}}
-						>
-							<View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: "#14b8a6" }} />
-							<Ionicons name="bluetooth" size={14} color="#14b8a6" />
-						</View>
+			{/* Header */}
+			<View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18 }}>
+				<View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+					<View>
+						<Text style={{ color: textPrimary, fontSize: 22, fontWeight: "700" }}>Lékovka Alpha</Text>
+						<Text style={{ color: "#71717a", fontSize: 13, marginTop: 2 }}>
+							{filledCount} z 14 přihrádek obsazeno
+						</Text>
+					</View>
+					<View
+						style={{
+							flexDirection: "row",
+							alignItems: "center",
+							gap: 6,
+							paddingHorizontal: 12,
+							paddingVertical: 8,
+							borderRadius: 12,
+							backgroundColor: isDark ? "#0a2420" : "#e6faf7",
+							borderWidth: 1,
+							borderColor: isDark ? "#14b8a640" : "#99f6e4",
+						}}
+					>
+						<View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: "#14b8a6" }} />
+						<Ionicons name="bluetooth" size={14} color="#14b8a6" />
 					</View>
 				</View>
+			</View>
 
-				{/* Device card */}
-				<View
-					style={{
-						marginHorizontal: H_MARGIN,
-						backgroundColor: deviceBg,
-						borderColor: deviceBorder,
-						borderWidth: 1.5,
-						borderRadius: 24,
-						padding: INNER_PAD,
-						shadowColor: "#000",
-						shadowOffset: { width: 0, height: 2 },
-						shadowOpacity: isDark ? 0.4 : 0.08,
-						shadowRadius: 12,
-						elevation: 4,
-					}}
-				>
-					{/* Column labels */}
-					<View style={{ flexDirection: "row", gap: COL_GAP, marginBottom: 8 }}>
-						{["A", "B"].map((label) => (
-							<View key={label} style={{ width: CELL_W, alignItems: "center" }}>
-								<Text style={{ color: isDark ? "#3f3f46" : "#a1a1aa", fontSize: 9, fontWeight: "700", letterSpacing: 1.5 }}>
-									ŘADA {label}
-								</Text>
-							</View>
-						))}
-					</View>
-
-					{/* 7 rows × 2 columns */}
-					{COL_A.map((slotA, i) => (
-						<View
-							key={i}
-							style={{
-								flexDirection: "row",
-								gap: COL_GAP,
-								marginBottom: i < COL_A.length - 1 ? ROW_GAP : 0,
-							}}
-						>
-							<SlotCell slot={slotA} isDark={isDark} />
-							<SlotCell slot={COL_B[i]} isDark={isDark} />
+			{/* Device card */}
+			<View
+				style={{
+					marginHorizontal: H_MARGIN,
+					backgroundColor: deviceBg,
+					borderColor: deviceBorder,
+					borderWidth: 1.5,
+					borderRadius: 24,
+					padding: INNER_PAD,
+					shadowColor: "#000",
+					shadowOffset: { width: 0, height: 2 },
+					shadowOpacity: isDark ? 0.4 : 0.08,
+					shadowRadius: 12,
+					elevation: 4,
+				}}
+			>
+				<View style={{ flexDirection: "row", gap: COL_GAP, marginBottom: 8 }}>
+					{["A", "B"].map((label) => (
+						<View key={label} style={{ width: CELL_W, alignItems: "center" }}>
+							<Text
+								style={{
+									color: isDark ? "#3f3f46" : "#a1a1aa",
+									fontSize: 9,
+									fontWeight: "700",
+									letterSpacing: 1.5,
+								}}
+							>
+								ŘADA {label}
+							</Text>
 						</View>
 					))}
 				</View>
 
-				{/* Legend */}
-				<View style={{ flexDirection: "row", justifyContent: "center", gap: 20, marginTop: 14 }}>
-					{LEGEND.map((item) => (
-						<View key={item.label} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-							<View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: item.color }} />
-							<Text style={{ color: "#71717a", fontSize: 11 }}>{item.label}</Text>
-						</View>
-					))}
-				</View>
+				{COL_A.map((slotA, i) => (
+					<View
+						key={i}
+						style={{
+							flexDirection: "row",
+							gap: COL_GAP,
+							marginBottom: i < COL_A.length - 1 ? ROW_GAP : 0,
+						}}
+					>
+						<SlotCell slot={slotA} isDark={isDark} />
+						<SlotCell slot={COL_B[i]} isDark={isDark} />
+					</View>
+				))}
+			</View>
 
-				{/* Stats */}
-				<View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 16 }}>
-					<StatPill icon="battery-half" iconColor="#4ade80"  label="Baterie" value="78 %"    isDark={isDark} />
-					<StatPill icon="thermometer"  iconColor="#14b8a6"  label="Teplota" value="21.3 °C" isDark={isDark} />
-					<StatPill icon="sync"          iconColor="#a78bfa" label="Sync"    value="08:42"   isDark={isDark} />
-				</View>
+			<View style={{ flexDirection: "row", justifyContent: "center", gap: 20, marginTop: 14 }}>
+				{LEGEND.map((item) => (
+					<View key={item.label} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+						<View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: item.color }} />
+						<Text style={{ color: "#71717a", fontSize: 11 }}>{item.label}</Text>
+					</View>
+				))}
+			</View>
 
-			</ScrollView>
+			<View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 16 }}>
+				<StatPill icon="battery-half" iconColor="#4ade80" label="Baterie" value="78 %" isDark={isDark} />
+				<StatPill icon="thermometer" iconColor="#14b8a6" label="Teplota" value="21.3 °C" isDark={isDark} />
+				<StatPill icon="sync" iconColor="#a78bfa" label="Sync" value="08:42" isDark={isDark} />
+			</View>
 		</SafeAreaView>
 	);
 }
