@@ -1,10 +1,20 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Switch, useColorScheme, useWindowDimensions, Alert, FlatList } from "react-native";
+import {
+	View,
+	Text,
+	ScrollView,
+	Pressable,
+	Switch,
+	useColorScheme,
+	useWindowDimensions,
+	Alert,
+	FlatList,
+	Platform,
+} from "react-native";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -86,8 +96,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 	);
 }
 
-// ─── Caregiver QR sheet ───────────────────────────────────────────────────────
-
 function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle: (v: boolean) => void }) {
 	const isDark = useColorScheme() === "dark";
 	const { deviceId } = useDeviceStore();
@@ -128,14 +136,16 @@ function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle
 	);
 }
 
-// ─── Alarms sheet ─────────────────────────────────────────────────────────────
-
-// ── Inline scroll picker 0–59 ────────────────────────────────────────────────
-
 const ITEM_H = 44;
 const VISIBLE = 3;
 
-function NumberPicker({ value, onChange, min = 0, max = 59, isDark }: {
+function NumberPicker({
+	value,
+	onChange,
+	min = 0,
+	max = 59,
+	isDark,
+}: {
 	value: number;
 	onChange: (v: number) => void;
 	min?: number;
@@ -152,7 +162,6 @@ function NumberPicker({ value, onChange, min = 0, max = 59, isDark }: {
 
 	return (
 		<View style={{ height: ITEM_H * VISIBLE, overflow: "hidden", position: "relative" }}>
-			{/* selection highlight */}
 			<View
 				style={{
 					position: "absolute",
@@ -180,13 +189,14 @@ function NumberPicker({ value, onChange, min = 0, max = 59, isDark }: {
 				contentContainerStyle={{ paddingVertical: ITEM_H }}
 				renderItem={({ item }) => (
 					<View style={{ height: ITEM_H, alignItems: "center", justifyContent: "center" }}>
-						<Text style={{
-							fontSize: 20,
-							fontWeight: item === value ? "700" : "400",
-							color: item === value
-								? isDark ? "#ffffff" : "#18181b"
-								: isDark ? "#52525b" : "#a1a1aa",
-						}}>
+						<Text
+							style={{
+								fontSize: 20,
+								fontWeight: item === value ? "700" : "400",
+								color:
+									item === value ? (isDark ? "#ffffff" : "#18181b") : isDark ? "#52525b" : "#a1a1aa",
+							}}
+						>
 							{String(item).padStart(2, "0")}
 						</Text>
 					</View>
@@ -195,8 +205,6 @@ function NumberPicker({ value, onChange, min = 0, max = 59, isDark }: {
 		</View>
 	);
 }
-
-// ── helper: "HH:MM" ↔ Date ───────────────────────────────────────────────────
 
 function timeStrToDate(t: string): Date {
 	const [h, m] = t.split(":").map(Number);
@@ -209,11 +217,18 @@ function dateToTimeStr(d: Date): string {
 	return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-// ─── PickerRow ────────────────────────────────────────────────────────────────
-
 type ActivePicker = "morning" | "evening" | "escalation" | null;
 
-function PickerRow({ id, label, valueLabel, active, onToggle, isDark, alwaysCollapse = false, children }: {
+function PickerRow({
+	id,
+	label,
+	valueLabel,
+	active,
+	onToggle,
+	isDark,
+	alwaysCollapse = false,
+	children,
+}: {
 	id: ActivePicker;
 	label: string;
 	valueLabel: string;
@@ -223,34 +238,53 @@ function PickerRow({ id, label, valueLabel, active, onToggle, isDark, alwaysColl
 	alwaysCollapse?: boolean;
 	children: React.ReactNode;
 }) {
-	const isOpen      = active === id;
-	const useDialog   = Platform.OS === "android" && !alwaysCollapse;
-	const rowBg       = isDark ? "#27272a" : "#f4f4f5";
-	const borderC     = isDark ? "#3f3f46" : "#e4e4e7";
-	const activeBg    = isDark ? "#18181b" : "#f0f0f1";
+	const isOpen = active === id;
+	const useDialog = Platform.OS === "android" && !alwaysCollapse;
+	const rowBg = isDark ? "#27272a" : "#f4f4f5";
+	const borderC = isDark ? "#3f3f46" : "#e4e4e7";
+	const activeBg = isDark ? "#18181b" : "#f0f0f1";
 
 	return (
 		<View style={{ borderRadius: 16, borderWidth: 1, borderColor: borderC, overflow: "hidden" }}>
 			<Pressable
 				onPress={() => onToggle(isOpen ? null : id)}
-				style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-					paddingHorizontal: 16, paddingVertical: 14, backgroundColor: rowBg }}
+				style={{
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+					paddingHorizontal: 16,
+					paddingVertical: 14,
+					backgroundColor: rowBg,
+				}}
 			>
-				<Text style={{ color: isDark ? "#a1a1aa" : "#71717a", fontSize: 13, fontWeight: "600" }}>
-					{label}
-				</Text>
+				<Text style={{ color: isDark ? "#a1a1aa" : "#71717a", fontSize: 13, fontWeight: "600" }}>{label}</Text>
 				<View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-					<Text style={{ color: isDark ? "#ffffff" : "#18181b", fontSize: 17, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+					<Text
+						style={{
+							color: isDark ? "#ffffff" : "#18181b",
+							fontSize: 17,
+							fontWeight: "700",
+							fontVariant: ["tabular-nums"],
+						}}
+					>
 						{valueLabel}
 					</Text>
-					{useDialog
-						? <Ionicons name="pencil" size={15} color="#71717a" />
-						: <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#71717a" />
-					}
+					{useDialog ? (
+						<Ionicons name="pencil" size={15} color="#71717a" />
+					) : (
+						<Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#71717a" />
+					)}
 				</View>
 			</Pressable>
 			{isOpen && !useDialog && (
-				<View style={{ backgroundColor: activeBg, borderTopWidth: 1, borderTopColor: borderC, alignItems: "center" }}>
+				<View
+					style={{
+						backgroundColor: activeBg,
+						borderTopWidth: 1,
+						borderTopColor: borderC,
+						alignItems: "center",
+					}}
+				>
 					{children}
 				</View>
 			)}
@@ -258,16 +292,13 @@ function PickerRow({ id, label, valueLabel, active, onToggle, isDark, alwaysColl
 	);
 }
 
-// ─── AlarmsSheet ──────────────────────────────────────────────────────────────
-
-function AlarmsSheet({ onClose }: { onClose: () => void }) {
+function AlarmsSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: (morning: string, evening: string) => void }) {
 	const isDark = useColorScheme() === "dark";
 	const insets = useSafeAreaInsets();
 	const bottomPad = Platform.OS === "android" ? Math.max(insets.bottom, 16) : 24;
 
 	const [morningDate, setMorningDate] = useState(() => timeStrToDate("08:00"));
 	const [eveningDate, setEveningDate] = useState(() => timeStrToDate("20:00"));
-	const [escalation, setEscalation] = useState(15);
 	const [active, setActive] = useState<ActivePicker>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -275,27 +306,33 @@ function AlarmsSheet({ onClose }: { onClose: () => void }) {
 		const s = getDeviceSettings();
 		if (!s) return;
 		if (s.alarm_morning_h !== null && s.alarm_morning_m !== null)
-			setMorningDate(timeStrToDate(`${String(s.alarm_morning_h).padStart(2, "0")}:${String(s.alarm_morning_m).padStart(2, "0")}`));
+			setMorningDate(
+				timeStrToDate(
+					`${String(s.alarm_morning_h).padStart(2, "0")}:${String(s.alarm_morning_m).padStart(2, "0")}`,
+				),
+			);
 		if (s.alarm_evening_h !== null && s.alarm_evening_m !== null)
-			setEveningDate(timeStrToDate(`${String(s.alarm_evening_h).padStart(2, "0")}:${String(s.alarm_evening_m).padStart(2, "0")}`));
-		if (s.alarm_interval !== null)
-			setEscalation(Math.floor(s.alarm_interval / 60));
+			setEveningDate(
+				timeStrToDate(
+					`${String(s.alarm_evening_h).padStart(2, "0")}:${String(s.alarm_evening_m).padStart(2, "0")}`,
+				),
+			);
 	}, []);
 
 	const handleSave = async () => {
 		setLoading(true);
 		try {
-			const mH = morningDate.getHours(), mM = morningDate.getMinutes();
+			const mH = morningDate.getHours(),
+				mM = morningDate.getMinutes();
 			await BleWrapperModule.setAlarmMorning(mH, mM);
 			updateDeviceSettings({ alarm_morning_h: mH, alarm_morning_m: mM });
 
-			const eH = eveningDate.getHours(), eM = eveningDate.getMinutes();
+			const eH = eveningDate.getHours(),
+				eM = eveningDate.getMinutes();
 			await BleWrapperModule.setAlarmEvening(eH, eM);
 			updateDeviceSettings({ alarm_evening_h: eH, alarm_evening_m: eM });
 
-			await BleWrapperModule.setAlarmInterval(escalation * 60);
-			updateDeviceSettings({ alarm_interval: escalation * 60 });
-
+			onSaved?.(dateToTimeStr(morningDate), dateToTimeStr(eveningDate));
 			onClose();
 		} catch (e) {
 			console.error("Save alarms failed", e);
@@ -308,44 +345,62 @@ function AlarmsSheet({ onClose }: { onClose: () => void }) {
 	return (
 		<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
 			<View className="flex-row items-center justify-between px-1">
-				<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
-					Časy upozornění
-				</Text>
+				<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">Časy upozornění</Text>
 				<Pressable onPress={onClose} className="active:opacity-60">
 					<Ionicons name="close" size={22} color="#71717a" />
 				</Pressable>
 			</View>
 
 			<View className="flex-1 gap-3 px-1">
-				<PickerRow id="morning" label="Ranní léky" valueLabel={dateToTimeStr(morningDate)} active={active} onToggle={setActive} isDark={isDark}>
+				<PickerRow
+					id="morning"
+					label="Ranní léky"
+					valueLabel={dateToTimeStr(morningDate)}
+					active={active}
+					onToggle={setActive}
+					isDark={isDark}
+				>
 					<DateTimePicker
 						value={morningDate}
 						mode="time"
 						display="spinner"
-						onChange={(_, d) => { if (d) setMorningDate(d); }}
+						onChange={(_, d) => {
+							if (d) setMorningDate(d);
+						}}
 						textColor={isDark ? "#ffffff" : "#18181b"}
 						style={{ height: ITEM_H * VISIBLE }}
 					/>
 				</PickerRow>
 
-				<PickerRow id="evening" label="Večerní léky" valueLabel={dateToTimeStr(eveningDate)} active={active} onToggle={setActive} isDark={isDark}>
+				<PickerRow
+					id="evening"
+					label="Večerní léky"
+					valueLabel={dateToTimeStr(eveningDate)}
+					active={active}
+					onToggle={setActive}
+					isDark={isDark}
+				>
 					<DateTimePicker
 						value={eveningDate}
 						mode="time"
 						display="spinner"
-						onChange={(_, d) => { if (d) setEveningDate(d); }}
+						onChange={(_, d) => {
+							if (d) setEveningDate(d);
+						}}
 						textColor={isDark ? "#ffffff" : "#18181b"}
 						style={{ height: ITEM_H * VISIBLE }}
 					/>
 				</PickerRow>
 
-				{/* Android: dialog renderovaný mimo PickerRow */}
 				{Platform.OS === "android" && active === "morning" && (
 					<DateTimePicker
 						value={morningDate}
 						mode="time"
 						display="default"
-						onChange={(_, d) => { if (d) setMorningDate(d); setActive(null); }}
+						onChange={(_, d) => {
+							if (d) setMorningDate(d);
+							setActive(null);
+						}}
 					/>
 				)}
 				{Platform.OS === "android" && active === "evening" && (
@@ -353,37 +408,103 @@ function AlarmsSheet({ onClose }: { onClose: () => void }) {
 						value={eveningDate}
 						mode="time"
 						display="default"
-						onChange={(_, d) => { if (d) setEveningDate(d); setActive(null); }}
+						onChange={(_, d) => {
+							if (d) setEveningDate(d);
+							setActive(null);
+						}}
 					/>
 				)}
+			</View>
 
-				<PickerRow id="escalation" label="Eskalace po" valueLabel={`${escalation} min`} active={active} onToggle={setActive} isDark={isDark} alwaysCollapse>
-					<View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 14 }}>
-						{[1, 2, 5, 10, 15].map((v) => (
-							<Pressable
-								key={v}
-								onPress={() => setEscalation(v)}
+			<Pressable
+				onPress={handleSave}
+				disabled={loading}
+				className="rounded-2xl py-4 items-center active:opacity-80"
+				style={{ backgroundColor: "#2563eb" }}
+			>
+				<Text className="font-semibold text-[15px] text-white">
+					{loading ? "Ukládám…" : "Uložit do lékovky"}
+				</Text>
+			</Pressable>
+		</View>
+	);
+}
+
+function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: (minutes: number) => void }) {
+	const isDark = useColorScheme() === "dark";
+	const insets = useSafeAreaInsets();
+	const bottomPad = Platform.OS === "android" ? Math.max(insets.bottom, 16) : 24;
+
+	const [escalation, setEscalation] = useState(15);
+	const [loading, setLoading] = useState(false);
+
+	useEffect(() => {
+		const s = getDeviceSettings();
+		if (s?.alarm_interval != null) setEscalation(Math.floor(s.alarm_interval / 60));
+	}, []);
+
+	const handleSave = async () => {
+		setLoading(true);
+		try {
+			await BleWrapperModule.setAlarmInterval(escalation * 60);
+			updateDeviceSettings({ alarm_interval: escalation * 60 });
+			onSaved?.(escalation);
+			onClose();
+		} catch (e) {
+			console.error("Save escalation failed", e);
+			Alert.alert("Chyba", "Nepodařilo se uložit nastavení.");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
+			<View className="flex-row items-center justify-between px-1">
+				<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">Eskalace po</Text>
+				<Pressable onPress={onClose} className="active:opacity-60">
+					<Ionicons name="close" size={22} color="#71717a" />
+				</Pressable>
+			</View>
+
+			<View className="flex-1 justify-center px-1">
+				<View style={{ flexDirection: "row", gap: 10 }}>
+					{[1, 2, 5, 10, 15].map((v) => (
+						<Pressable
+							key={v}
+							onPress={() => setEscalation(v)}
+							style={{
+								flex: 1,
+								paddingVertical: 18,
+								borderRadius: 16,
+								alignItems: "center",
+								backgroundColor: escalation === v ? "#2563eb" : isDark ? "#27272a" : "#f4f4f5",
+								borderWidth: 1.5,
+								borderColor: escalation === v ? "#2563eb" : isDark ? "#3f3f46" : "#e4e4e7",
+							}}
+						>
+							<Text
 								style={{
-									flex: 1,
-									paddingVertical: 10,
-									borderRadius: 12,
-									alignItems: "center",
-									backgroundColor: escalation === v
-										? "#2563eb"
-										: isDark ? "#3f3f46" : "#e4e4e7",
-								}}
-							>
-								<Text style={{
-									fontSize: 15,
+									fontSize: 20,
 									fontWeight: "700",
 									color: escalation === v ? "#ffffff" : isDark ? "#a1a1aa" : "#71717a",
-								}}>
-									{v}
-								</Text>
-							</Pressable>
-						))}
-					</View>
-				</PickerRow>
+								}}
+							>
+								{v}
+							</Text>
+							<Text
+								style={{
+									fontSize: 10,
+									fontWeight: "500",
+									marginTop: 2,
+									color: escalation === v ? "#bfdbfe" : isDark ? "#52525b" : "#a1a1aa",
+								}}
+							>
+								min
+							</Text>
+						</Pressable>
+					))}
+				</View>
 			</View>
 
 			<Pressable
@@ -526,7 +647,6 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 		);
 	}
 
-	// Jméno po naskenování
 	if (view === "nameInput") {
 		return (
 			<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
@@ -540,7 +660,6 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 				</View>
 
 				<View className="flex-1 justify-center gap-6 px-1">
-					{/* Potvrzení scanu */}
 					<View className="items-center gap-2">
 						<View className="w-14 h-14 rounded-full bg-emerald-500/15 items-center justify-center">
 							<Ionicons name="checkmark-circle" size={28} color="#10b981" />
@@ -550,7 +669,6 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 						</Text>
 					</View>
 
-					{/* Jméno */}
 					<View className="gap-2">
 						<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
 							Jméno příbuzného
@@ -588,7 +706,6 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 		);
 	}
 
-	// Seznam (výchozí view)
 	return (
 		<View className="flex-1 pt-2 gap-4" style={{ paddingBottom: bottomPad }}>
 			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">Příbuzní</Text>
@@ -645,21 +762,30 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 	);
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export default function SettingsScreen() {
 	const [caregiverNotif, setCaregiverNotif] = useState(false);
+	const [escalationLabel, setEscalationLabel] = useState("15 min");
+	const [alarmsLabel, setAlarmsLabel] = useState("z plánu");
 	const insets = useSafeAreaInsets();
 	const isDark = useColorScheme() === "dark";
 	const router = useRouter();
 
+	useEffect(() => {
+		const s = getDeviceSettings();
+		if (s?.alarm_interval != null) setEscalationLabel(`${Math.floor(s.alarm_interval / 60)} min`);
+		if (s?.alarm_morning_h != null && s?.alarm_morning_m != null && s?.alarm_evening_h != null && s?.alarm_evening_m != null) {
+			const m = `${String(s.alarm_morning_h).padStart(2, "0")}:${String(s.alarm_morning_m).padStart(2, "0")}`;
+			const e = `${String(s.alarm_evening_h).padStart(2, "0")}:${String(s.alarm_evening_m).padStart(2, "0")}`;
+			setAlarmsLabel(`${m} — ${e}`);
+		}
+	}, []);
+
 	const caregiverSheetRef = useRef<BottomSheetModal>(null);
 	const familySheetRef = useRef<BottomSheetModal>(null);
 	const alarmsSheetRef = useRef<BottomSheetModal>(null);
+	const escalationSheetRef = useRef<BottomSheetModal>(null);
 	const snapPoints = useMemo(() => ["70%"], []);
 
-
-	// ── Relations state žije zde, ne uvnitř FamilySheet ─────────────────────
 	const { deviceId } = useDeviceStore();
 	const [relations, setRelations] = useState<FamilyRelation[]>([]);
 
@@ -687,12 +813,7 @@ export default function SettingsScreen() {
 
 	return (
 		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
-			{/* pointerEvents="none" zabrání touch passthrough přes backdrop sheetu na řádky pod ním */}
-			<ScrollView
-				showsVerticalScrollIndicator={false}
-				contentContainerStyle={{ paddingBottom: 40 }}
-	
-			>
+			<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 				<View className="px-4 pt-2 pb-5 flex-row items-center gap-2">
 					<Pressable onPress={() => router.back()} className="active:opacity-60 mr-1">
 						<Ionicons name="chevron-back" size={28} color={isDark ? "#ffffff" : "#18181b"} />
@@ -709,7 +830,9 @@ export default function SettingsScreen() {
 						chevron
 						onPress={() => familySheetRef.current?.present()}
 					/>
+
 					<Divider />
+
 					<SettingRow
 						icon="person"
 						iconContainerClassName="bg-[#dbeafe] dark:bg-[#0d1a2d]"
@@ -726,19 +849,20 @@ export default function SettingsScreen() {
 						iconContainerClassName="bg-zinc-100 dark:bg-zinc-800"
 						iconColor="#52525b"
 						label="Čas připomenutí"
-						value="z plánu"
+						value={alarmsLabel}
 						chevron
 						onPress={() => alarmsSheetRef.current?.present()}
 					/>
 					<Divider />
+
 					<SettingRow
 						icon="time"
 						iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
 						iconColor="#d97706"
 						label="Eskalace po"
-						value="15 min"
+						value={escalationLabel}
+						onPress={() => escalationSheetRef.current?.present()}
 						chevron
-						onPress={() => alarmsSheetRef.current?.present()}
 					/>
 				</Section>
 
@@ -753,36 +877,15 @@ export default function SettingsScreen() {
 					/>
 				</Section>
 
-				<Section title="Data">
-					<SettingRow
-						icon="cloud-download"
-						iconContainerClassName="bg-[#e0e7ff] dark:bg-[#1e1b2e]"
-						iconColor="#6366f1"
-						label="Exportovat zálohu"
-						chevron
-					/>
-					<Divider />
-					<SettingRow
-						icon="trash"
-						iconContainerClassName="bg-[#fee2e2] dark:bg-[#2d0d0d]"
-						iconColor="#ef4444"
-						label="Smazat všechna data"
-						danger
-						chevron
-					/>
-				</Section>
-
-				<Text className="text-center text-zinc-500 text-xs mt-2 mb-4">Lékovka v1.0.0 · Prometheus</Text>
+				<Text className="text-center text-zinc-500 text-xs mt-2 mb-4">Prometheus v1.0.0 · Plajta 2026</Text>
 			</ScrollView>
 
-			{/* Notifikace příbuzným sheet */}
 			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 px-6 py-2">
 					<CaregiverNotifSheet enabled={caregiverNotif} onToggle={setCaregiverNotif} />
 				</BottomSheetView>
 			</BottomSheetModal>
 
-			{/* Správa příbuzných sheet */}
 			<BottomSheetModal ref={familySheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<FamilySheet
@@ -793,10 +896,21 @@ export default function SettingsScreen() {
 				</BottomSheetView>
 			</BottomSheetModal>
 
-			{/* Časy upozornění sheet */}
 			<BottomSheetModal ref={alarmsSheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
-					<AlarmsSheet onClose={() => alarmsSheetRef.current?.dismiss()} />
+					<AlarmsSheet
+					onClose={() => alarmsSheetRef.current?.dismiss()}
+					onSaved={(m, e) => setAlarmsLabel(`${m} — ${e}`)}
+				/>
+				</BottomSheetView>
+			</BottomSheetModal>
+
+			<BottomSheetModal ref={escalationSheetRef} {...sheetProps} snapPoints={["30%"]}>
+				<BottomSheetView className="flex-1 h-full px-6 py-2">
+					<EscalationSheet
+						onClose={() => escalationSheetRef.current?.dismiss()}
+						onSaved={(minutes) => setEscalationLabel(`${minutes} min`)}
+					/>
 				</BottomSheetView>
 			</BottomSheetModal>
 		</View>
