@@ -47,6 +47,7 @@ class NrfBleManager(private val context: Context) {
         val ALARM_EVENING_UUID: UUID    = uuidFrom16Bit(0x2003)
         val CUP_STATE_UUID: UUID        = uuidFrom16Bit(0x2004)
         val FIND_MY_UUID: UUID          = uuidFrom16Bit(0x2005)
+        val ALERTS_ENABLED_UUID: UUID   = uuidFrom16Bit(0x2006)
 
         // Standard BLE Client Characteristic Configuration Descriptor
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
@@ -519,6 +520,28 @@ class NrfBleManager(private val context: Context) {
             ((state shr 8) and 0xFF).toByte()
         )
 
+        onWriteResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Write(char, data))
+    }
+
+    // ─── Alerts Toggle (Quiet Mode) ────────────────────────────────
+
+    /**
+     * Enable or disable physical alerts/buzzer on the pill box.
+     */
+    fun setAlertsEnabled(
+        enabled: Boolean,
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt ?: run { onFail("Not connected"); return }
+        val service = gatt.getService(PILL_SERVICE_UUID)
+        val char = service?.getCharacteristic(ALERTS_ENABLED_UUID) ?: run {
+            onFail("Alerts Enabled characteristic not found"); return
+        }
+
+        val data = byteArrayOf(if (enabled) 1 else 0)
         onWriteResult = onResult
         onError = onFail
         enqueueCommand(BleCommand.Write(char, data))

@@ -110,6 +110,15 @@ class BleWrapperModule : Module() {
             )
         }
 
+        // Toggle physical alerts on the pill box (quiet mode)
+        AsyncFunction("setAlertsEnabled") { enabled: Boolean, promise: Promise ->
+            nrfManager.setAlertsEnabled(
+                enabled = enabled,
+                onResult = { promise.resolve(null) },
+                onFail = { error -> promise.reject("WRITE_ERROR", error, null) }
+            )
+        }
+
         // Find My — blink red LED on the XIAO
         AsyncFunction("findMy") { promise: Promise ->
             nrfManager.findMy(

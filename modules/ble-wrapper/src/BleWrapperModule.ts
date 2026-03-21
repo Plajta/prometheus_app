@@ -23,6 +23,9 @@ declare class BleWrapperModule extends NativeModule<BleWrapperModuleEvents> {
   /** Write cup state (14 bits as uint16). */
   writeCupState(state: number): Promise<void>;
 
+  /** Enable (true) or disable (false) physical alerts/buzzer on the pill box. */
+  setAlertsEnabled(enabled: boolean): Promise<void>;
+
   /** Trigger Find My — blinks red LED on the XIAO for 1 second. */
   findMy(): Promise<void>;
 
