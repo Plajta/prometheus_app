@@ -1,5 +1,5 @@
-import { View, Text, Dimensions, useColorScheme, TouchableOpacity, PermissionsAndroid, Platform } from "react-native";
-import { useState, useEffect } from "react";
+import { View, Text, Dimensions, useColorScheme, TouchableOpacity } from "react-native";
+import { useState } from "react";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,69 +7,52 @@ import { Ionicons } from "@expo/vector-icons";
 
 const { width: SW } = Dimensions.get("window");
 
-type CStatus = "active" | "low" | "paused" | "empty";
-
 interface Slot {
 	id: string;
-	name?: string;
-	strength?: string;
-	status: CStatus;
+	dayName: string;
+	timeLabel: string;
+	taken: boolean;
 }
 
-const COL_A: Slot[] = [
-	{ id: "A1", name: "Metformin", strength: "500 mg", status: "active" },
-	{ id: "A2", name: "Atorvastatin", strength: "20 mg", status: "active" },
-	{ id: "A3", status: "empty" },
-	{ id: "A4", status: "empty" },
-	{ id: "A5", status: "empty" },
-	{ id: "A6", status: "empty" },
-	{ id: "A7", status: "empty" },
-];
+const DAYS = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"];
 
-const COL_B: Slot[] = [
-	{ id: "B1", name: "Ramipril", strength: "5 mg", status: "active" },
-	{ id: "B2", name: "Metformin", strength: "500 mg", status: "low" },
-	{ id: "B3", status: "empty" },
-	{ id: "B4", status: "empty" },
-	{ id: "B5", status: "empty" },
-	{ id: "B6", status: "empty" },
-	{ id: "B7", name: "Amlodipine", strength: "10 mg", status: "paused" },
-];
+const COL_A: Slot[] = DAYS.map((day, i) => ({
+	id: `A${i + 1}`,
+	dayName: day,
+	timeLabel: "Ráno",
+	taken: i < 3,
+}));
+
+const COL_B: Slot[] = DAYS.map((day, i) => ({
+	id: `B${i + 1}`,
+	dayName: day,
+	timeLabel: "Večer",
+	taken: i < 2,
+}));
 
 const H_MARGIN = 16;
 const INNER_PAD = 12;
-const COL_GAP = 6; // gap between the two columns
-const ROW_GAP = 5; // gap between rows
+const COL_GAP = 6;
+const ROW_GAP = 5;
 
 const CELL_W = (SW - H_MARGIN * 2 - INNER_PAD * 2 - COL_GAP) / 2;
 const CELL_H = 58;
 
-const DARK: Record<CStatus, { bg: string; border: string; text: string; sub: string; dot: string }> = {
-	active: { bg: "#422006", border: "#eab308", text: "#fef9c3", sub: "#facc15", dot: "#eab308" },
-	low: { bg: "#241a07", border: "#f59e0b", text: "#fef3c7", sub: "#f59e0b", dot: "#f59e0b" },
-	paused: { bg: "#141414", border: "#3f3f46", text: "#a1a1aa", sub: "#52525b", dot: "#52525b" },
-	empty: { bg: "#111113", border: "#1e1e21", text: "#3f3f46", sub: "#252528", dot: "transparent" },
-};
-
-const LIGHT: Record<CStatus, { bg: string; border: string; text: string; sub: string; dot: string }> = {
-	active: { bg: "#fefce8", border: "#eab308", text: "#713f12", sub: "#ca8a04", dot: "#eab308" },
-	low: { bg: "#fffbeb", border: "#f59e0b", text: "#713f12", sub: "#d97706", dot: "#f59e0b" },
-	paused: { bg: "#f4f4f5", border: "#d4d4d8", text: "#71717a", sub: "#a1a1aa", dot: "#a1a1aa" },
-	empty: { bg: "#f0f0f1", border: "#e4e4e7", text: "#c4c4c6", sub: "#e0e0e2", dot: "transparent" },
-};
-
 function SlotCell({ slot, isDark }: { slot: Slot; isDark: boolean }) {
-	const c = (isDark ? DARK : LIGHT)[slot.status];
-	const filled = slot.status !== "empty";
+	const bg = slot.taken ? (isDark ? "#14532d" : "#dcfce7") : isDark ? "#7f1d1d" : "#fee2e2";
+	const border = slot.taken ? (isDark ? "#22c55e" : "#4ade80") : isDark ? "#ef4444" : "#f87171";
+	const text = slot.taken ? (isDark ? "#bbf7d0" : "#166534") : isDark ? "#fecaca" : "#991b1b";
+	const subText = slot.taken ? (isDark ? "#4ade80" : "#15803d") : isDark ? "#f87171" : "#b91c1c";
+	const dot = slot.taken ? "#22c55e" : "#ef4444";
 
 	return (
 		<View
 			style={{
 				width: CELL_W,
 				height: CELL_H,
-				backgroundColor: c.bg,
-				borderColor: c.border,
-				borderWidth: filled ? 1.5 : 1,
+				backgroundColor: bg,
+				borderColor: border,
+				borderWidth: slot.taken ? 1.5 : 1,
 				borderRadius: 12,
 				paddingHorizontal: 10,
 				paddingVertical: 8,
@@ -83,23 +66,16 @@ function SlotCell({ slot, isDark }: { slot: Slot; isDark: boolean }) {
 					width: 7,
 					height: 7,
 					borderRadius: 99,
-					backgroundColor: filled ? c.dot : c.sub,
+					backgroundColor: dot,
 					flexShrink: 0,
 				}}
 			/>
 
 			<View style={{ flex: 1, gap: 2 }}>
-				<Text style={{ color: c.sub, fontSize: 9, fontWeight: "700", letterSpacing: 0.5 }}>{slot.id}</Text>
-				{filled ? (
-					<Text style={{ color: c.text, fontSize: 12, fontWeight: "600", lineHeight: 15 }} numberOfLines={1}>
-						{slot.name}
-					</Text>
-				) : (
-					<Text style={{ color: c.sub, fontSize: 11 }}>—</Text>
-				)}
-				{filled && slot.strength && (
-					<Text style={{ color: c.sub, fontSize: 10, fontWeight: "500" }}>{slot.strength}</Text>
-				)}
+				<Text style={{ color: subText, fontSize: 9, fontWeight: "700", letterSpacing: 0.5 }}>{slot.id}</Text>
+				<Text style={{ color: text, fontSize: 13, fontWeight: "700", lineHeight: 15 }} numberOfLines={1}>
+					{slot.dayName}
+				</Text>
 			</View>
 		</View>
 	);
@@ -144,12 +120,11 @@ function ActionButton({
 }
 
 const LEGEND = [
-	{ color: "#eab308", label: "aktivní" },
-	{ color: "#f59e0b", label: "dochází" },
-	{ color: "#71717a", label: "pauza" },
+	{ color: "#22c55e", label: "vyzvednuto" },
+	{ color: "#ef4444", label: "nevyzvednuto" },
 ] as const;
 
-const filledCount = [...COL_A, ...COL_B].filter((s) => s.status !== "empty").length;
+const takenCount = [...COL_A, ...COL_B].filter((s) => s.taken).length;
 
 export default function DeviceScreen() {
 	const isDark = useColorScheme() === "dark";
@@ -168,7 +143,7 @@ export default function DeviceScreen() {
 					<View className={!isConnected ? "invisible" : ""}>
 						<Text style={{ color: textPrimary, fontSize: 22, fontWeight: "700" }}>Lékovka Alpha</Text>
 						<Text style={{ color: "#71717a", fontSize: 13, marginTop: 2 }}>
-							{filledCount} z 14 přihrádek obsazeno
+							{takenCount} ze 14 léků vyzvednuto
 						</Text>
 					</View>
 
@@ -227,21 +202,13 @@ export default function DeviceScreen() {
 							elevation: 4,
 						}}
 					>
-						<View style={{ flexDirection: "row", gap: COL_GAP, marginBottom: 8 }}>
-							{["A", "B"].map((label) => (
-								<View key={label} style={{ width: CELL_W, alignItems: "center" }}>
-									<Text
-										style={{
-											color: isDark ? "#3f3f46" : "#a1a1aa",
-											fontSize: 9,
-											fontWeight: "700",
-											letterSpacing: 1.5,
-										}}
-									>
-										ŘADA {label}
-									</Text>
-								</View>
-							))}
+						<View style={{ flexDirection: "row", gap: COL_GAP, marginBottom: 12 }}>
+							<View style={{ width: CELL_W, alignItems: "center" }}>
+								<Text style={{ color: textPrimary, fontSize: 14, fontWeight: "600" }}>RÁNO</Text>
+							</View>
+							<View style={{ width: CELL_W, alignItems: "center" }}>
+								<Text style={{ color: textPrimary, fontSize: 14, fontWeight: "600" }}>VEČER</Text>
+							</View>
 						</View>
 
 						{COL_A.map((slotA, i) => (
