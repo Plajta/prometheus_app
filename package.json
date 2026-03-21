@@ -9,6 +9,7 @@
 	},
 	"dependencies": {
 		"@gorhom/bottom-sheet": "^5.2.8",
+		"@react-native-community/datetimepicker": "8.4.4",
 		"expo": "^54.0.0",
 		"expo-application": "~7.0.8",
 		"expo-build-properties": "~1.0.10",
