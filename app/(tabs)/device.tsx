@@ -1,22 +1,10 @@
-import {
-	View,
-	Text,
-	Dimensions,
-	useColorScheme,
-	ScrollView,
-	TouchableOpacity,
-	PermissionsAndroid,
-	Platform,
-} from "react-native";
+import { View, Text, Dimensions, useColorScheme, TouchableOpacity, PermissionsAndroid, Platform } from "react-native";
 import { useState } from "react";
-import BleWrapperModule from "../../modules/ble-wrapper/src/BleWrapperModule";
+import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { StatusBar } from "expo-status-bar";
 
 const { width: SW } = Dimensions.get("window");
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
 
 type CStatus = "active" | "low" | "paused" | "empty";
 
@@ -54,8 +42,6 @@ const ROW_GAP = 5; // gap between rows
 
 const CELL_W = (SW - H_MARGIN * 2 - INNER_PAD * 2 - COL_GAP) / 2;
 const CELL_H = 58;
-
-// ─── Colors ───────────────────────────────────────────────────────────────────
 
 const DARK: Record<CStatus, { bg: string; border: string; text: string; sub: string; dot: string }> = {
 	active: { bg: "#422006", border: "#eab308", text: "#fef9c3", sub: "#facc15", dot: "#eab308" },
