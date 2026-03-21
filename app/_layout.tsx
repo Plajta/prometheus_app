@@ -7,10 +7,11 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { setupDatabase } from "../lib/database";
+import { setupDatabase } from "~/lib/database";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { PermissionsAndroid, Platform } from "react-native";
+import { registerDevice } from "~/lib/notifications";
 
 export default function Layout() {
 	useEffect(() => {
@@ -19,6 +20,10 @@ export default function Layout() {
 		} catch (error) {
 			console.error("Database setup failed:", error);
 		}
+
+		registerDevice()
+			.then(({ deviceId }) => console.log(deviceId))
+			.catch(console.error);
 
 		(async () => {
 			try {
@@ -37,38 +42,46 @@ export default function Layout() {
 						console.error("Bluetooth permissions denied");
 						return;
 					}
-				}
 
-				//await BleWrapperModule.connectToXiao();
+					await BleWrapperModule.connectToXiao();
+				}
 			} catch (e) {
 				console.error(e);
 			}
 		})();
 
-		// Sync initial state
-		// useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
+		if (Platform.OS === "android") {
+			useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
-		useDeviceStore.getState().setIsConnected(true);
+			const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
+				useDeviceStore.getState().setIsConnected(event.connected);
+			});
 
-		// Listen globally
-		// const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
-		// 	useDeviceStore.getState().setIsConnected(event.connected);
-		// });
-		// const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
-		// 	useDeviceStore.getState().setIsConnected(event.connected);
-		// });
+			const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
+				useDeviceStore.getState().setIsConnected(event.connected);
+			});
 
-		// return () => {
-		// 	connSub.remove();
-		// 	disconnSub.remove();
-		// };
+			const buttonSub = BleWrapperModule.addListener("onButtonPress", (event) => {
+				if (event.pressed) {
+					useDeviceStore.getState().toggleSlotB6();
+				}
+			});
+
+			return () => {
+				connSub.remove();
+				disconnSub.remove();
+				buttonSub.remove();
+			};
+		} else {
+			useDeviceStore.getState().setIsConnected(true);
+		}
 	}, []);
 
 	return (
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<SafeAreaProvider>
 				<BottomSheetModalProvider>
-					<Stack screenOptions={{ headerShown: false }} />
+					<Stack screenOptions={{ headerShown: false, animation: "none" }} />
 					<StatusBar style="auto" />
 				</BottomSheetModalProvider>
 			</SafeAreaProvider>
