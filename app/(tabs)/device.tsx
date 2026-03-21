@@ -58,8 +58,6 @@ function SlotCell({ slot }: { slot: Slot }) {
 	);
 }
 
-
-
 const LEGEND = [
 	{ color: "#22c55e", label: "vyzvednuto" },
 	{ color: "#ef4444", label: "nevyzvednuto" },
@@ -71,6 +69,8 @@ export default function DeviceScreen() {
 	const [ledOn, setLedOn] = useState(false);
 	const bottomSheetRef = useRef<BottomSheetModal>(null);
 	const isConnected = useDeviceStore((state) => state.isConnected);
+	const battery = useDeviceStore((state) => state.battery);
+	const temperature = useDeviceStore((state) => state.temperature);
 
 	return (
 		<SafeAreaView className="bg-zinc-50 dark:bg-zinc-950 flex-1">
@@ -124,7 +124,39 @@ export default function DeviceScreen() {
 						))}
 					</View>
 
+					<View className="mt-8 flex-row gap-4 px-1">
+						<View className="flex-1 rounded-[24px] border-[1.5px] border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="mb-2 flex-row items-center gap-2">
+								<View className="h-8 w-8 items-center justify-center rounded-full bg-green-500/15">
+									<Ionicons
+										name="battery-half"
+										size={16}
+										className="text-green-600 dark:text-green-500"
+									/>
+								</View>
+								<Text className="text-zinc-500 text-[13px] font-semibold tracking-wide">BATERIE</Text>
+							</View>
+							<Text className="text-zinc-900 dark:text-white text-[22px] font-bold">
+								{battery !== null ? `${battery} %` : "--"}
+							</Text>
+						</View>
 
+						<View className="flex-1 rounded-[24px] border-[1.5px] border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="mb-2 flex-row items-center gap-2">
+								<View className="h-8 w-8 items-center justify-center rounded-full bg-orange-500/15">
+									<Ionicons
+										name="thermometer"
+										size={16}
+										className="text-orange-600 dark:text-orange-500"
+									/>
+								</View>
+								<Text className="text-zinc-500 text-[13px] font-semibold tracking-wide">TEPLOTA</Text>
+							</View>
+							<Text className="text-zinc-900 dark:text-white text-[22px] font-bold">
+								{temperature !== null ? `${temperature} °C` : "--"}
+							</Text>
+						</View>
+					</View>
 				</>
 			) : (
 				<View className="flex-1 items-center justify-center gap-4 px-10 pb-[60px]">
@@ -144,7 +176,7 @@ export default function DeviceScreen() {
 
 			<SettingsBottomSheet ref={bottomSheetRef}>
 				<Text className="text-zinc-900 dark:text-white text-[18px] font-bold mb-4">Nastavení lékovky</Text>
-				
+
 				<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">
 					<View className="flex-row items-center gap-4">
 						<View className="w-10 h-10 rounded-full bg-yellow-500/10 items-center justify-center">
@@ -152,8 +184,8 @@ export default function DeviceScreen() {
 						</View>
 						<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">Světelná indikace</Text>
 					</View>
-					
-					<Switch 
+
+					<Switch
 						value={ledOn}
 						onValueChange={async (val) => {
 							try {
