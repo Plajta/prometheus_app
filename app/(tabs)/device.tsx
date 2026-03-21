@@ -43,6 +43,7 @@ export default function DeviceScreen() {
 	const temperature = useBleDeviceStore((state) => state.temperature);
 	const slotsA = useBleDeviceStore((state) => state.slotsA);
 	const slotsB = useBleDeviceStore((state) => state.slotsB);
+	const lastSyncTime = useBleDeviceStore((state) => state.lastSyncTime);
 
 	useEffect(() => {
 		const s = getDeviceSettings();
@@ -128,6 +129,17 @@ export default function DeviceScreen() {
 							</Text>
 						</View>
 					</View>
+
+					{lastSyncTime && (
+						<Text className="mt-4 text-center text-[10px] font-medium tracking-widest text-zinc-400 dark:text-zinc-500 uppercase">
+							Poslední synchronizace: {lastSyncTime.toLocaleString("cs-CZ", {
+								day: "numeric",
+								month: "numeric",
+								hour: "2-digit",
+								minute: "2-digit",
+							})}
+						</Text>
+					)}
 				</>
 			) : (
 				<View className="flex-1 items-center justify-center gap-4 px-10 pb-[60px]">

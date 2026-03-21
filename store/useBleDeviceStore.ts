@@ -33,6 +33,8 @@ export interface DeviceState {
 	slotsA: Slot[];
 	slotsB: Slot[];
 	setCupState: (state: number) => void;
+	lastSyncTime: Date | null;
+	setLastSyncTime: (date: Date | null) => void;
 }
 
 export const useBleDeviceStore = create<DeviceState>((set) => ({
@@ -56,4 +58,6 @@ export const useBleDeviceStore = create<DeviceState>((set) => ({
 			}));
 			return { slotsA: newA, slotsB: newB };
 		}),
+	lastSyncTime: null,
+	setLastSyncTime: (date) => set({ lastSyncTime: date }),
 }));

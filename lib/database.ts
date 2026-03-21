@@ -111,8 +111,9 @@ export function getDeviceSettings() {
 			alarm_evening_m: number | null;
 			alarm_interval: number | null;
 			cup_state: number | null;
+			last_seen: number | null;
 		}>(
-			`SELECT alerts_enabled, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m, alarm_interval, cup_state FROM device WHERE id=1`,
+			`SELECT alerts_enabled, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m, alarm_interval, cup_state, last_seen FROM device WHERE id=1`,
 		);
 	} catch (e) {
 		console.error("[DB] getDeviceSettings error:", e);

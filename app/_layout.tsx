@@ -21,8 +21,13 @@ export default function Layout() {
 
 			// Preload store from database state before we listen.
 			const s = getDeviceSettings();
-			if (s && s.cup_state !== null && s.cup_state !== undefined) {
-				useBleDeviceStore.getState().setCupState(s.cup_state);
+			if (s) {
+				if (s.cup_state !== null && s.cup_state !== undefined) {
+					useBleDeviceStore.getState().setCupState(s.cup_state);
+				}
+				if (s.last_seen !== null && s.last_seen !== undefined) {
+					useBleDeviceStore.getState().setLastSyncTime(new Date(s.last_seen * 1000));
+				}
 			}
 		} catch (error) {
 			console.error("Database setup failed:", error);
@@ -70,6 +75,7 @@ export default function Layout() {
 				try {
 					const batteryStr = await BleWrapperModule.readBattery();
 					useBleDeviceStore.getState().setBattery(parseInt(batteryStr, 10));
+					useBleDeviceStore.getState().setLastSyncTime(new Date());
 
 					// Upload settings from DB to the board
 					const settings = getDeviceSettings();
@@ -107,14 +113,17 @@ export default function Layout() {
 
 		const tempSub = BleWrapperModule.addListener("onTemperatureData", (event) => {
 			useBleDeviceStore.getState().setTemperature(event.temperature);
+			useBleDeviceStore.getState().setLastSyncTime(new Date());
 		});
 
 		const batterySub = BleWrapperModule.addListener("onBatteryLevel", (event) => {
 			useBleDeviceStore.getState().setBattery(event.level);
+			useBleDeviceStore.getState().setLastSyncTime(new Date());
 		});
 
 		const cupSub = BleWrapperModule.addListener("onCupStateChanged", (event) => {
 			useBleDeviceStore.getState().setCupState(event.state);
+			useBleDeviceStore.getState().setLastSyncTime(new Date());
 		});
 
 		return () => {
