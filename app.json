@@ -9,7 +9,10 @@
     "experiments": {
       "tsconfigPaths": true
     },
-    "plugins": [],
+    "plugins": [
+      "expo-sqlite",
+      "expo-router"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,12 +21,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
+   				"assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.info-cantienro.prometheus-app"
+      "bundleIdentifier": "com.plajta.prometheus-app",
+      "appleTeamId": "56ZRVZU3WX"
     },
     "android": {
       "adaptiveIcon": {
