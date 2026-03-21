@@ -62,7 +62,7 @@ export default function DeviceScreen() {
 
 			{isConnected ? (
 				<>
-					<View className="flex-1 mx-4 p-3 gap-[5px] border-zinc-300 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 rounded-[24px] border-[1.5px] shadow-sm">
+					<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 gap-[5px] mx-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 						<View className="flex-row gap-1.5 pb-2">
 							<View className="flex-1 items-center">
 								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">RÁNO</Text>
@@ -89,8 +89,8 @@ export default function DeviceScreen() {
 						))}
 					</View>
 
-					<View className="mt-8 flex-row mx-4 gap-1.5">
-						<View className="flex-1 rounded-[24px] border-[1.5px] border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+					<View className="mt-8 flex-row mx-4 gap-3">
+						<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 							<View className="mb-2 flex-row items-center gap-2">
 								<View className="h-8 w-8 items-center justify-center rounded-full bg-green-500/15">
 									<Ionicons
@@ -107,7 +107,7 @@ export default function DeviceScreen() {
 							</Text>
 						</View>
 
-						<View className="flex-1 rounded-[24px] border-[1.5px] border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+						<View className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 							<View className="mb-2 flex-row items-center gap-2">
 								<View className="h-8 w-8 items-center justify-center rounded-full bg-orange-500/15">
 									<Ionicons
@@ -145,7 +145,7 @@ export default function DeviceScreen() {
 				<Text className="text-zinc-900 dark:text-white text-[18px] font-bold mb-4">Nastavení lékovky</Text>
 
 				<View className="gap-3">
-					<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">
+					<View className="flex-row items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800">
 						<View className="flex-row items-center gap-4">
 							<View className="w-10 h-10 rounded-full bg-yellow-500/10 items-center justify-center">
 								<Ionicons name="bulb" size={20} color={ledOn ? "#eab308" : "#71717a"} />
@@ -156,7 +156,7 @@ export default function DeviceScreen() {
 						</View>
 					</View>
 
-					<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">
+					<View className="flex-row items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800">
 						<View className="flex-row items-center gap-4">
 							<View className="w-10 h-10 rounded-full bg-blue-500/10 items-center justify-center">
 								<Ionicons name="volume-high" size={20} color={alertsEnabled ? "#3b82f6" : "#71717a"} />
@@ -189,7 +189,7 @@ export default function DeviceScreen() {
 								console.error(e);
 							}
 						}}
-						className="flex-row items-center p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80 active:opacity-70"
+						className="flex-row items-center p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 active:opacity-70"
 					>
 						<View className="w-10 h-10 rounded-full bg-red-500/10 items-center justify-center mr-4">
 							<Ionicons name="location" size={20} color="#ef4444" />
@@ -210,7 +210,7 @@ export default function DeviceScreen() {
 								Alert.alert("Chyba", "Nepodařilo se synchronizovat čas.");
 							}
 						}}
-						className="flex-row items-center p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80 active:opacity-70"
+						className="flex-row items-center p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 active:opacity-70"
 					>
 						<View className="w-10 h-10 rounded-full bg-indigo-500/10 items-center justify-center mr-4">
 							<Ionicons name="time" size={20} color="#6366f1" />

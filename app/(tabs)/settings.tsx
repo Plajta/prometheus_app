@@ -233,7 +233,13 @@ function AlarmsSheet({ onClose }: { onClose: () => void }) {
 
 type FamilyView = "list" | "camera" | "nameInput";
 
-function FamilySheet() {
+interface FamilySheetProps {
+	relations: FamilyRelation[];
+	setRelations: React.Dispatch<React.SetStateAction<FamilyRelation[]>>;
+	onAfterAdd: () => void;
+}
+
+function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) {
 	const isDark = useColorScheme() === "dark";
 	const { deviceId } = useDeviceStore();
 	const { height } = useWindowDimensions();
@@ -241,7 +247,6 @@ function FamilySheet() {
 	const cameraHeight = Math.round(height * 0.7 - 140);
 
 	const [view, setView] = useState<FamilyView>("list");
-	const [relations, setRelations] = useState<FamilyRelation[]>([]);
 	/** device_id naskenovaného příbuzného */
 	const [scannedDeviceId, setScannedDeviceId] = useState("");
 	const [newName, setNewName] = useState("");
@@ -249,14 +254,6 @@ function FamilySheet() {
 	const scannedRef = useRef(false);
 
 	const [permission, requestPermission] = useCameraPermissions();
-
-	// Načti, koho já (watcher) sleduji
-	useEffect(() => {
-		if (!deviceId) return;
-		getWatching(deviceId)
-			.then((data) => setRelations(Array.isArray(data) ? data : []))
-			.catch(() => {});
-	}, [deviceId]);
 
 	// ── Camera ────────────────────────────────────────────────────────────────
 
@@ -296,6 +293,7 @@ function FamilySheet() {
 			setView("list");
 			setScannedDeviceId("");
 			setNewName("");
+			onAfterAdd();
 		} catch {
 			// server error — uživatel může zkusit znovu
 		} finally {
@@ -485,6 +483,17 @@ export default function SettingsScreen() {
 	const alarmsSheetRef = useRef<BottomSheetModal>(null);
 	const snapPoints = useMemo(() => ["70%"], []);
 
+	// ── Relations state žije zde, ne uvnitř FamilySheet ─────────────────────
+	const { deviceId } = useDeviceStore();
+	const [relations, setRelations] = useState<FamilyRelation[]>([]);
+
+	useEffect(() => {
+		if (!deviceId) return;
+		getWatching(deviceId)
+			.then((data) => setRelations(Array.isArray(data) ? data : []))
+			.catch(() => {});
+	}, [deviceId]);
+
 	const renderBackdrop = useCallback(
 		(props: any) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />,
 		[],
@@ -591,7 +600,11 @@ export default function SettingsScreen() {
 			{/* Správa příbuzných sheet */}
 			<BottomSheetModal ref={familySheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
-					<FamilySheet />
+					<FamilySheet
+						relations={relations}
+						setRelations={setRelations}
+						onAfterAdd={() => familySheetRef.current?.snapToIndex(0)}
+					/>
 				</BottomSheetView>
 			</BottomSheetModal>
 
