@@ -5,31 +5,27 @@ import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.Context
 import android.os.Build
-import android.os.ParcelUuid
 import android.util.Log
 import java.util.*
 
 /**
- * BLE Manager tailored for communication with the XIAO nRF52840 Sense.
+ * BLE Manager for persistent connection with XIAO nRF52840 Sense.
  *
- * Supports:
- * - Scanning for a device by name ("XIAO_Sense_Accel")
- * - Reading accelerometer data from characteristic 0x1235
- * - Writing LED state ("1"/"0") to characteristic 0x1236
- *
- * Inspired by the PlajTime BleManager command-queue pattern.
+ * Connects once, stays connected, subscribes to accelerometer notifications,
+ * allows LED writes at any time, and emits events on disconnect.
  */
 class NrfBleManager(private val context: Context) {
 
     companion object {
         private const val TAG = "NrfBleManager"
 
-        // 16-bit UUIDs used in the XIAO firmware
-        val SERVICE_UUID: UUID         = uuidFrom16Bit(0x1234)
-        val ACCEL_CHAR_UUID: UUID      = uuidFrom16Bit(0x1235)
-        val LED_CHAR_UUID: UUID        = uuidFrom16Bit(0x1236)
+        val SERVICE_UUID: UUID    = uuidFrom16Bit(0x1234)
+        val ACCEL_CHAR_UUID: UUID = uuidFrom16Bit(0x1235)
+        val LED_CHAR_UUID: UUID   = uuidFrom16Bit(0x1236)
 
-        /** Convert 16-bit BLE UUID to full 128-bit UUID */
+        // Standard BLE Client Characteristic Configuration Descriptor
+        val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+
         private fun uuidFrom16Bit(shortUuid: Int): UUID {
             return UUID.fromString(
                 String.format("0000%04x-0000-1000-8000-00805f9b34fb", shortUuid)
@@ -45,27 +41,27 @@ class NrfBleManager(private val context: Context) {
     private val commandQueue: Queue<BleCommand> = LinkedList()
     private var isCommandInProgress = false
 
-    // Callbacks for async results
-    private var onReadResult: ((String) -> Unit)? = null
+    // Event listeners set by the Module
+    var onAccelData: ((String) -> Unit)? = null
+    var onDeviceConnected: (() -> Unit)? = null
+    var onDeviceDisconnected: (() -> Unit)? = null
+
+    // Promise callbacks for one-shot operations
+    private var onConnectResult: ((Boolean) -> Unit)? = null
     private var onWriteResult: ((Boolean) -> Unit)? = null
-    private var onScanResult: ((String) -> Unit)? = null
+    private var onReadResult: ((String) -> Unit)? = null
     private var onError: ((String) -> Unit)? = null
+
+    val isConnected: Boolean
+        get() = bluetoothGatt != null
 
     private sealed class BleCommand {
         data class Read(val characteristic: BluetoothGattCharacteristic) : BleCommand()
         data class Write(val characteristic: BluetoothGattCharacteristic, val value: ByteArray) : BleCommand()
-        object Disconnect : BleCommand()
+        data class EnableNotify(val characteristic: BluetoothGattCharacteristic) : BleCommand()
     }
 
-    // ─── GATT Callback ─────────────────────────────────────────────
-
-    private var pendingAction: PendingAction = PendingAction.None
-
-    private sealed class PendingAction {
-        object None : PendingAction()
-        object ReadAccel : PendingAction()
-        data class WriteLed(val value: String) : PendingAction()
-    }
+    // ─── GATT Callback ──────────────────────────────────────────────
 
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
@@ -79,6 +75,7 @@ class NrfBleManager(private val context: Context) {
                     gatt.discoverServices()
                 } else {
                     Log.e(TAG, "Connect failed with status $status")
+                    onConnectResult?.invoke(false)
                     onError?.invoke("Connection failed with status $status")
                     closeGatt()
                 }
@@ -89,6 +86,8 @@ class NrfBleManager(private val context: Context) {
                     isCommandInProgress = false
                 }
                 closeGatt()
+                // Emit disconnect event to JS
+                onDeviceDisconnected?.invoke()
             }
         }
 
@@ -96,42 +95,43 @@ class NrfBleManager(private val context: Context) {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.e(TAG, "Service discovery failed, status: $status")
+                onConnectResult?.invoke(false)
                 onError?.invoke("Service discovery failed")
                 closeGatt()
                 return
             }
-            Log.i(TAG, "Services discovered")
+            Log.i(TAG, "Services discovered, subscribing to accel notifications...")
 
-            when (val action = pendingAction) {
-                is PendingAction.ReadAccel -> {
-                    val service = gatt.getService(SERVICE_UUID)
-                    val accelChar = service?.getCharacteristic(ACCEL_CHAR_UUID)
-                    if (accelChar != null) {
-                        enqueueCommand(BleCommand.Read(accelChar))
-                        enqueueCommand(BleCommand.Disconnect)
-                    } else {
-                        onError?.invoke("Accelerometer characteristic not found")
-                        closeGatt()
-                    }
-                }
-                is PendingAction.WriteLed -> {
-                    val service = gatt.getService(SERVICE_UUID)
-                    val ledChar = service?.getCharacteristic(LED_CHAR_UUID)
-                    if (ledChar != null) {
-                        enqueueCommand(BleCommand.Write(ledChar, action.value.toByteArray()))
-                        enqueueCommand(BleCommand.Disconnect)
-                    } else {
-                        onError?.invoke("LED characteristic not found")
-                        closeGatt()
-                    }
-                }
-                is PendingAction.None -> {
-                    closeGatt()
-                }
+            // Subscribe to accelerometer notifications
+            val service = gatt.getService(SERVICE_UUID)
+            val accelChar = service?.getCharacteristic(ACCEL_CHAR_UUID)
+
+            if (accelChar != null) {
+                enqueueCommand(BleCommand.EnableNotify(accelChar))
+            } else {
+                Log.w(TAG, "Accelerometer characteristic not found, continuing without notifications")
+            }
+
+            // Signal that connection is alive
+            onDeviceConnected?.invoke()
+            onConnectResult?.invoke(true)
+            onConnectResult = null
+        }
+
+        @Suppress("DEPRECATION")
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            // This fires when the XIAO sends a Notify with new accel data
+            if (characteristic.uuid == ACCEL_CHAR_UUID) {
+                val value = characteristic.value?.let { String(it) } ?: ""
+                onAccelData?.invoke(value)
             }
         }
 
         @SuppressLint("MissingPermission")
+        @Suppress("DEPRECATION")
         override fun onCharacteristicRead(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
@@ -141,8 +141,9 @@ class NrfBleManager(private val context: Context) {
                 val value = characteristic.value?.let { String(it) } ?: ""
                 Log.i(TAG, "Read value: $value")
                 onReadResult?.invoke(value)
+                onReadResult = null
             } else {
-                Log.e(TAG, "Characteristic read failed, status: $status")
+                Log.e(TAG, "Read failed, status: $status")
                 onError?.invoke("Read failed with status $status")
             }
             processNextCommand()
@@ -157,9 +158,23 @@ class NrfBleManager(private val context: Context) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.i(TAG, "Write successful")
                 onWriteResult?.invoke(true)
+                onWriteResult = null
             } else {
                 Log.e(TAG, "Write failed with status: $status")
                 onError?.invoke("Write failed with status $status")
+            }
+            processNextCommand()
+        }
+
+        override fun onDescriptorWrite(
+            gatt: BluetoothGatt,
+            descriptor: BluetoothGattDescriptor,
+            status: Int
+        ) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.i(TAG, "Descriptor write successful (notifications enabled)")
+            } else {
+                Log.e(TAG, "Descriptor write failed, status: $status")
             }
             processNextCommand()
         }
@@ -195,9 +210,8 @@ class NrfBleManager(private val context: Context) {
                 val recordName = result.scanRecord?.deviceName
                 val name = recordName ?: deviceName
 
-                // Pro debug vypíšeme všechna zařízení (ignorujeme ta úplně bez jména)
                 if (name != null) {
-                    Log.d(TAG, "Scanned: name=$name (device.name=$deviceName, recordName=$recordName), addr=${result.device.address}")
+                    Log.d(TAG, "Scanned: name=$name, addr=${result.device.address}")
                 }
 
                 if (name == "XIAO_Sense_Accel") {
@@ -221,7 +235,6 @@ class NrfBleManager(private val context: Context) {
         Log.i(TAG, "BLE scan started")
     }
 
-    /** Stop any active BLE scan */
     @SuppressLint("MissingPermission")
     fun stopScan() {
         scanCallback?.let {
@@ -232,43 +245,15 @@ class NrfBleManager(private val context: Context) {
     }
 
     /**
-     * Connect to a device by MAC address and read the accelerometer characteristic.
-     * Returns the value (e.g. "0.15,-0.98,0.05") via onResult.
+     * Connect to XIAO and stay connected.
+     * After connection + service discovery, automatically subscribes to accel notifications.
      */
     @SuppressLint("MissingPermission")
-    fun readAccelerometer(
+    fun connect(
         address: String,
-        onResult: (String) -> Unit,
-        onFail: (String) -> Unit
-    ) {
-        pendingAction = PendingAction.ReadAccel
-        onReadResult = onResult
-        onError = onFail
-        connectToDevice(address, onFail)
-    }
-
-    /**
-     * Connect to a device by MAC address and write LED state.
-     * @param on true = LED on ("1"), false = LED off ("0")
-     */
-    @SuppressLint("MissingPermission")
-    fun writeLed(
-        address: String,
-        on: Boolean,
         onResult: (Boolean) -> Unit,
         onFail: (String) -> Unit
     ) {
-        val value = if (on) "1" else "0"
-        pendingAction = PendingAction.WriteLed(value)
-        onWriteResult = onResult
-        onError = onFail
-        connectToDevice(address, onFail)
-    }
-
-    // ─── Private helpers ────────────────────────────────────────────
-
-    @SuppressLint("MissingPermission")
-    private fun connectToDevice(address: String, onFail: (String) -> Unit) {
         val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val adapter = bluetoothManager.adapter
         if (adapter == null || !adapter.isEnabled) {
@@ -288,9 +273,78 @@ class NrfBleManager(private val context: Context) {
         }
         closeGatt()
 
-        Log.d(TAG, "Connecting to $address")
+        onConnectResult = onResult
+        onError = onFail
+
+        Log.d(TAG, "Connecting to $address (persistent)...")
         bluetoothGatt = device.connectGatt(context, false, gattCallback)
     }
+
+    /**
+     * Disconnect from the device gracefully.
+     */
+    @SuppressLint("MissingPermission")
+    fun disconnect() {
+        bluetoothGatt?.let { gatt ->
+            Log.d(TAG, "Disconnecting...")
+            gatt.disconnect()
+        }
+    }
+
+    /**
+     * Read accelerometer once (one-shot read instead of notification).
+     * The device must already be connected.
+     */
+    fun readAccelerometer(
+        onResult: (String) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt
+        if (gatt == null) {
+            onFail("Not connected")
+            return
+        }
+
+        val service = gatt.getService(SERVICE_UUID)
+        val accelChar = service?.getCharacteristic(ACCEL_CHAR_UUID)
+        if (accelChar == null) {
+            onFail("Accelerometer characteristic not found")
+            return
+        }
+
+        onReadResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Read(accelChar))
+    }
+
+    /**
+     * Write LED state. Device must already be connected.
+     */
+    fun writeLed(
+        on: Boolean,
+        onResult: (Boolean) -> Unit,
+        onFail: (String) -> Unit
+    ) {
+        val gatt = bluetoothGatt
+        if (gatt == null) {
+            onFail("Not connected")
+            return
+        }
+
+        val service = gatt.getService(SERVICE_UUID)
+        val ledChar = service?.getCharacteristic(LED_CHAR_UUID)
+        if (ledChar == null) {
+            onFail("LED characteristic not found")
+            return
+        }
+
+        val value = if (on) "1" else "0"
+        onWriteResult = onResult
+        onError = onFail
+        enqueueCommand(BleCommand.Write(ledChar, value.toByteArray()))
+    }
+
+    // ─── Private helpers ────────────────────────────────────────────
 
     @SuppressLint("MissingPermission")
     private fun closeGatt() {
@@ -331,6 +385,7 @@ class NrfBleManager(private val context: Context) {
 
         when (nextCommand) {
             is BleCommand.Read -> {
+                @Suppress("DEPRECATION")
                 val success = gatt.readCharacteristic(nextCommand.characteristic)
                 if (!success) {
                     Log.e(TAG, "Failed to start characteristic read")
@@ -358,9 +413,25 @@ class NrfBleManager(private val context: Context) {
                     processNextCommand()
                 }
             }
-            is BleCommand.Disconnect -> {
-                Log.d(TAG, "Initiating disconnect...")
-                gatt.disconnect()
+            is BleCommand.EnableNotify -> {
+                // Tell Android to listen for notifications from this characteristic
+                gatt.setCharacteristicNotification(nextCommand.characteristic, true)
+
+                // Write to CCCD descriptor to tell the peripheral to start sending
+                val descriptor = nextCommand.characteristic.getDescriptor(CCCD_UUID)
+                if (descriptor != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        @Suppress("DEPRECATION")
+                        gatt.writeDescriptor(descriptor)
+                    }
+                } else {
+                    Log.w(TAG, "CCCD descriptor not found, notifications may not work")
+                    processNextCommand()
+                }
             }
         }
     }
