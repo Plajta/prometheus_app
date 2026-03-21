@@ -21,7 +21,7 @@ import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetText
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { useBleDeviceStore } from "~/store/useBleDeviceStore";
 import { getWatching, addFamilyRelation, deleteFamilyRelation, type FamilyRelation } from "~/lib/notifications";
-import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
+import { getDeviceSettings, updateDeviceSettings, clearSchedule } from "~/lib/database";
 import { syncSchedule } from "~/lib/scheduleSync";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 
@@ -388,6 +388,12 @@ function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: 
 		try {
 			await BleWrapperModule.setAlarmInterval(escalation * 60);
 			updateDeviceSettings({ alarm_interval: escalation * 60 });
+
+			const s = getDeviceSettings();
+			if (s?.alarm_morning_h != null && s?.alarm_morning_m != null && s?.alarm_evening_h != null && s?.alarm_evening_m != null) {
+				syncSchedule(s.alarm_morning_h, s.alarm_morning_m, s.alarm_evening_h, s.alarm_evening_m, escalation).catch(console.error);
+			}
+
 			onSaved?.(escalation);
 			onClose();
 		} catch (e) {

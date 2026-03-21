@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS device (
     alarm_morning_m INTEGER DEFAULT 0,
     alarm_evening_h INTEGER DEFAULT 20,
     alarm_evening_m INTEGER DEFAULT 0,
-    alarm_interval INTEGER,
+    alarm_interval INTEGER DEFAULT 900,
     last_seen INTEGER
 );
 
@@ -33,6 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_temp_log_device ON temperature_log(device_id, mea
 CREATE TABLE IF NOT EXISTS schedule (
     id INTEGER PRIMARY KEY DEFAULT 1,
     schedule_id TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
     alarm_morning_h INTEGER NOT NULL,
     alarm_morning_m INTEGER NOT NULL,
     alarm_evening_h INTEGER NOT NULL,
@@ -64,11 +65,18 @@ export function setupDatabase(forceWipe: boolean = false) {
 				db.execSync(`CREATE TABLE IF NOT EXISTS schedule (
 					id INTEGER PRIMARY KEY DEFAULT 1,
 					schedule_id TEXT NOT NULL,
+					scheduled_time TEXT NOT NULL,
 					alarm_morning_h INTEGER NOT NULL,
 					alarm_morning_m INTEGER NOT NULL,
 					alarm_evening_h INTEGER NOT NULL,
 					alarm_evening_m INTEGER NOT NULL
 				)`);
+				// Add scheduled_time column if upgrading from old schema
+				try {
+					db.execSync(`ALTER TABLE schedule ADD COLUMN scheduled_time TEXT NOT NULL DEFAULT ''`);
+				} catch {
+					// Column already exists — ignore
+				}
 				return;
 			}
 		}
@@ -198,12 +206,13 @@ export function getStoredSchedule() {
 	try {
 		return db.getFirstSync<{
 			schedule_id: string;
+			scheduled_time: string;
 			alarm_morning_h: number;
 			alarm_morning_m: number;
 			alarm_evening_h: number;
 			alarm_evening_m: number;
 		}>(
-			`SELECT schedule_id, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m FROM schedule WHERE id=1`,
+			`SELECT schedule_id, scheduled_time, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m FROM schedule WHERE id=1`,
 		);
 	} catch (e) {
 		console.error("[DB] getStoredSchedule error:", e);
@@ -211,18 +220,19 @@ export function getStoredSchedule() {
 	}
 }
 
-export function saveSchedule(scheduleId: string, mH: number, mM: number, eH: number, eM: number) {
+export function saveSchedule(scheduleId: string, scheduledTime: string, mH: number, mM: number, eH: number, eM: number) {
 	try {
 		db.runSync(
-			`INSERT INTO schedule (id, schedule_id, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m)
-             VALUES (1, ?, ?, ?, ?, ?)
+			`INSERT INTO schedule (id, schedule_id, scheduled_time, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m)
+             VALUES (1, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
              schedule_id=excluded.schedule_id,
+             scheduled_time=excluded.scheduled_time,
              alarm_morning_h=excluded.alarm_morning_h,
              alarm_morning_m=excluded.alarm_morning_m,
              alarm_evening_h=excluded.alarm_evening_h,
              alarm_evening_m=excluded.alarm_evening_m`,
-			[scheduleId, mH, mM, eH, eM],
+			[scheduleId, scheduledTime, mH, mM, eH, eM],
 		);
 	} catch (e) {
 		console.error("[DB] saveSchedule error:", e);

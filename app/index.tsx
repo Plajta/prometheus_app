@@ -321,6 +321,7 @@ export default function DeviceScreen() {
 		return () => clearInterval(interval);
 	}, []);
 
+
 	const takenCount = [...slotsA, ...slotsB].filter((s) => s.taken).length;
 
 	return (

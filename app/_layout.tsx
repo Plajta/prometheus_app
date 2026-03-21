@@ -18,7 +18,7 @@ import { syncSchedule } from "~/lib/scheduleSync";
 export default function Layout() {
 	useEffect(() => {
 		try {
-			setupDatabase();
+			setupDatabase(false);
 
 			// Preload store from database state before we listen.
 			const s = getDeviceSettings();
