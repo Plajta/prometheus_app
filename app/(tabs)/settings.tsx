@@ -557,7 +557,7 @@ export default function SettingsScreen() {
 						icon="person"
 						iconContainerClassName="bg-[#dbeafe] dark:bg-[#0d1a2d]"
 						iconColor="#2563eb"
-						label="Notifikace příbuzným"
+						label="Sdílet notifikace příbuzným"
 						chevron
 						onPress={() => presentSheet(caregiverSheetRef)}
 					/>
