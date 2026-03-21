@@ -35,7 +35,6 @@ const LEGEND = [
 	{ color: "#ef4444", label: "nevyzvednuto" },
 ] as const;
 
-
 export default function DeviceScreen() {
 	const [ledOn, setLedOn] = useState(false);
 	const bottomSheetRef = useRef<BottomSheetModal>(null);
@@ -96,6 +95,7 @@ export default function DeviceScreen() {
 									<Ionicons
 										name="battery-half"
 										size={16}
+										color="white"
 										className="text-green-600 dark:text-green-500"
 									/>
 								</View>
@@ -112,6 +112,7 @@ export default function DeviceScreen() {
 									<Ionicons
 										name="thermometer"
 										size={16}
+										color="white"
 										className="text-orange-600 dark:text-orange-500"
 									/>
 								</View>
