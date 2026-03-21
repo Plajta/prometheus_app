@@ -7,10 +7,11 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { setupDatabase } from "../lib/database";
+import { setupDatabase } from "~/lib/database";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { PermissionsAndroid, Platform } from "react-native";
+import { registerDevice } from "~/lib/notifications";
 
 export default function Layout() {
 	useEffect(() => {
@@ -19,6 +20,10 @@ export default function Layout() {
 		} catch (error) {
 			console.error("Database setup failed:", error);
 		}
+
+		registerDevice()
+			.then(({ deviceId }) => console.log(deviceId))
+			.catch(console.error);
 
 		(async () => {
 			try {
@@ -45,12 +50,8 @@ export default function Layout() {
 			}
 		})();
 
-		// Sync initial state
 		useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
-		//useDeviceStore.getState().setIsConnected(true);
-
-		// Listen globally
 		const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
 			useDeviceStore.getState().setIsConnected(event.connected);
 		});

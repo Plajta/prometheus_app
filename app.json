@@ -40,12 +40,19 @@
 				"foregroundImage": "./assets/adaptive-icon.png",
 				"backgroundColor": "#ffffff"
 			},
+			"googleServicesFile": "./google-services.json",
 			"package": "com.plajta.prometheusapp",
 			"permissions": [
 				"android.permission.BLUETOOTH_SCAN",
 				"android.permission.BLUETOOTH_CONNECT",
 				"android.permission.ACCESS_FINE_LOCATION"
 			]
+		},
+		"extra": {
+			"router": {},
+			"eas": {
+				"projectId": "153fb23e-6171-4aee-81a4-8087593542d8"
+			}
 		}
 	}
 }
