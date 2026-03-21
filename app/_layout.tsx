@@ -42,9 +42,9 @@ export default function Layout() {
 						console.error("Bluetooth permissions denied");
 						return;
 					}
-				}
 
-				await BleWrapperModule.connectToXiao();
+					await BleWrapperModule.connectToXiao();
+				}
 			} catch (e) {
 				console.error(e);
 			}
