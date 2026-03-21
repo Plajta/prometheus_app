@@ -2,49 +2,63 @@ package expo.modules.blewrapper
 
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import java.net.URL
+import expo.modules.kotlin.Promise
 
 class BleWrapperModule : Module() {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
-  override fun definition() = ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('BleWrapper')` in JavaScript.
-    Name("BleWrapper")
 
-    // Defines constant property on the module.
-    Constant("PI") {
-      Math.PI
+    private val nrfManager by lazy {
+        NrfBleManager(appContext.reactContext!!)
     }
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    override fun definition() = ModuleDefinition {
+        Name("BleWrapper")
 
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
+        Events("onChange")
 
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
-    }
+        // Scan for XIAO_Sense_Accel device, returns its MAC address
+        AsyncFunction("scanForXiao") { promise: Promise ->
+            nrfManager.scanForDevice(
+                onFound = { address ->
+                    promise.resolve(address)
+                },
+                onScanError = { error ->
+                    promise.reject("SCAN_ERROR", error, null)
+                }
+            )
+        }
 
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(BleWrapperView::class) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { view: BleWrapperView, url: URL ->
-        view.webView.loadUrl(url.toString())
-      }
-      // Defines an event that the view can send to JavaScript.
-      Events("onLoad")
+        // Stop any active BLE scan
+        AsyncFunction("stopScan") { promise: Promise ->
+            nrfManager.stopScan()
+            promise.resolve(null)
+        }
+
+        // Read accelerometer data from the XIAO device
+        // Returns a string like "0.15,-0.98,0.05"
+        AsyncFunction("readAccelerometer") { address: String, promise: Promise ->
+            nrfManager.readAccelerometer(
+                address = address,
+                onResult = { value ->
+                    promise.resolve(value)
+                },
+                onFail = { error ->
+                    promise.reject("READ_ERROR", error, null)
+                }
+            )
+        }
+
+        // Turn the green LED on or off
+        AsyncFunction("setLed") { address: String, on: Boolean, promise: Promise ->
+            nrfManager.writeLed(
+                address = address,
+                on = on,
+                onResult = {
+                    promise.resolve(null)
+                },
+                onFail = { error ->
+                    promise.reject("WRITE_ERROR", error, null)
+                }
+            )
+        }
     }
-  }
 }
