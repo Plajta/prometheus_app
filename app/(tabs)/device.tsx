@@ -1,10 +1,12 @@
-import { View, Text, TouchableOpacity } from "react-native";
-import { useState } from "react";
+import { View, Text, Switch } from "react-native";
+import { useState, useRef } from "react";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
+import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
 
 interface Slot {
 	id: string;
@@ -56,28 +58,7 @@ function SlotCell({ slot }: { slot: Slot }) {
 	);
 }
 
-function ActionButton({
-	icon,
-	iconColor,
-	label,
-	onPress,
-}: {
-	icon: React.ComponentProps<typeof Ionicons>["name"];
-	iconColor: string;
-	label: string;
-	onPress: () => void;
-}) {
-	return (
-		<TouchableOpacity
-			onPress={onPress}
-			activeOpacity={0.7}
-			className="border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 flex-1 items-center gap-1 rounded-2xl border p-3.5"
-		>
-			<Ionicons name={icon} size={20} color={iconColor} />
-			<Text className="text-zinc-900 dark:text-white text-center text-xs font-semibold">{label}</Text>
-		</TouchableOpacity>
-	);
-}
+
 
 const LEGEND = [
 	{ color: "#22c55e", label: "vyzvednuto" },
@@ -88,6 +69,7 @@ const takenCount = [...COL_A, ...COL_B].filter((s) => s.taken).length;
 
 export default function DeviceScreen() {
 	const [ledOn, setLedOn] = useState(false);
+	const bottomSheetRef = useRef<BottomSheetModal>(null);
 	const isConnected = useDeviceStore((state) => state.isConnected);
 
 	return (
@@ -99,7 +81,7 @@ export default function DeviceScreen() {
 						<Text className="text-zinc-500 mt-0.5 text-[13px]">{takenCount} ze 14 léků vyzvednuto</Text>
 					</View>
 
-					<BluetoothStatusPill isConnected={isConnected} />
+					<BluetoothStatusPill isConnected={isConnected} onPress={() => bottomSheetRef.current?.present()} />
 				</View>
 			</View>
 
@@ -142,21 +124,7 @@ export default function DeviceScreen() {
 						))}
 					</View>
 
-					<View className="mt-4 flex-row gap-2.5 px-4">
-						<ActionButton
-							icon="bulb"
-							iconColor={ledOn ? "#eab308" : "#71717a"}
-							label="LED"
-							onPress={async () => {
-								try {
-									await BleWrapperModule.setLed(!ledOn);
-									setLedOn(!ledOn);
-								} catch (e) {
-									console.error(e);
-								}
-							}}
-						/>
-					</View>
+
 				</>
 			) : (
 				<View className="flex-1 items-center justify-center gap-4 px-10 pb-[60px]">
@@ -173,6 +141,33 @@ export default function DeviceScreen() {
 					</Text>
 				</View>
 			)}
+
+			<SettingsBottomSheet ref={bottomSheetRef}>
+				<Text className="text-zinc-900 dark:text-white text-[18px] font-bold mb-4">Nastavení lékovky</Text>
+				
+				<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">
+					<View className="flex-row items-center gap-4">
+						<View className="w-10 h-10 rounded-full bg-yellow-500/10 items-center justify-center">
+							<Ionicons name="bulb" size={20} color={ledOn ? "#eab308" : "#71717a"} />
+						</View>
+						<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">Světelná indikace</Text>
+					</View>
+					
+					<Switch 
+						value={ledOn}
+						onValueChange={async (val) => {
+							try {
+								await BleWrapperModule.setLed(val);
+								setLedOn(val);
+							} catch (e) {
+								console.error(e);
+							}
+						}}
+						trackColor={{ false: "#3f3f46", true: "#eab308" }}
+						thumbColor="#ffffff"
+					/>
+				</View>
+			</SettingsBottomSheet>
 		</SafeAreaView>
 	);
 }

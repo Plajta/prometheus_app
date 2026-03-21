@@ -1,5 +1,7 @@
 import "../global.css";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -37,33 +39,39 @@ export default function Layout() {
 					}
 				}
 
-				await BleWrapperModule.connectToXiao();
+				//await BleWrapperModule.connectToXiao();
 			} catch (e) {
 				console.error(e);
 			}
 		})();
 
 		// Sync initial state
-		useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
+		// useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
+
+		useDeviceStore.getState().setIsConnected(true);
 
 		// Listen globally
-		const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
-			useDeviceStore.getState().setIsConnected(event.connected);
-		});
-		const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
-			useDeviceStore.getState().setIsConnected(event.connected);
-		});
+		// const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
+		// 	useDeviceStore.getState().setIsConnected(event.connected);
+		// });
+		// const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
+		// 	useDeviceStore.getState().setIsConnected(event.connected);
+		// });
 
-		return () => {
-			connSub.remove();
-			disconnSub.remove();
-		};
+		// return () => {
+		// 	connSub.remove();
+		// 	disconnSub.remove();
+		// };
 	}, []);
 
 	return (
-		<SafeAreaProvider>
-			<Stack screenOptions={{ headerShown: false }} />
-			<StatusBar style="auto" />
-		</SafeAreaProvider>
+		<GestureHandlerRootView style={{ flex: 1 }}>
+			<SafeAreaProvider>
+				<BottomSheetModalProvider>
+					<Stack screenOptions={{ headerShown: false }} />
+					<StatusBar style="auto" />
+				</BottomSheetModalProvider>
+			</SafeAreaProvider>
+		</GestureHandlerRootView>
 	);
 }
