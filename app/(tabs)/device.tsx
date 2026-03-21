@@ -165,7 +165,7 @@ export default function DeviceScreen() {
 		<SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#09090b" : "#fafafa" }}>
 			<View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18 }}>
 				<View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-					<View>
+					<View className={!isConnected ? "invisible" : ""}>
 						<Text style={{ color: textPrimary, fontSize: 22, fontWeight: "700" }}>Lékovka Alpha</Text>
 						<Text style={{ color: "#71717a", fontSize: 13, marginTop: 2 }}>
 							{filledCount} z 14 přihrádek obsazeno
