@@ -19,6 +19,7 @@ import QRCode from "react-native-qrcode-svg";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { useDeviceStore } from "~/store/useDeviceStore";
+import { useBleDeviceStore } from "~/store/useBleDeviceStore";
 import { getWatching, addFamilyRelation, deleteFamilyRelation, type FamilyRelation } from "~/lib/notifications";
 import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
@@ -715,6 +716,7 @@ export default function SettingsScreen() {
 	const snapPoints = useMemo(() => ["70%"], []);
 
 	const { deviceId } = useDeviceStore();
+	const { isConnected } = useBleDeviceStore();
 	const [relations, setRelations] = useState<FamilyRelation[]>([]);
 
 	useEffect(() => {
@@ -771,39 +773,43 @@ export default function SettingsScreen() {
 					/>
 				</Section>
 
-				<Section title="Upozornění">
-					<SettingRow
-						icon="notifications"
-						iconContainerClassName="bg-zinc-100 dark:bg-zinc-800"
-						iconColor="#52525b"
-						label="Čas připomenutí"
-						value={alarmsLabel}
-						chevron
-						onPress={() => alarmsSheetRef.current?.present()}
-					/>
-					<Divider />
+				{isConnected && (
+					<>
+						<Section title="Upozornění">
+							<SettingRow
+								icon="notifications"
+								iconContainerClassName="bg-zinc-100 dark:bg-zinc-800"
+								iconColor="#52525b"
+								label="Čas připomenutí"
+								value={alarmsLabel}
+								chevron
+								onPress={() => alarmsSheetRef.current?.present()}
+							/>
+							<Divider />
 
-					<SettingRow
-						icon="time"
-						iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
-						iconColor="#d97706"
-						label="Eskalace po"
-						value={escalationLabel}
-						onPress={() => escalationSheetRef.current?.present()}
-						chevron
-					/>
-				</Section>
+							<SettingRow
+								icon="time"
+								iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
+								iconColor="#d97706"
+								label="Eskalace po"
+								value={escalationLabel}
+								onPress={() => escalationSheetRef.current?.present()}
+								chevron
+							/>
+						</Section>
 
-				<Section title="Zásoba">
-					<SettingRow
-						icon="alert-circle"
-						iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
-						iconColor="#d97706"
-						label="Upozornit předem"
-						value="7 dní"
-						chevron
-					/>
-				</Section>
+						<Section title="Zásoba">
+							<SettingRow
+								icon="alert-circle"
+								iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
+								iconColor="#d97706"
+								label="Upozornit předem"
+								value="7 dní"
+								chevron
+							/>
+						</Section>
+					</>
+				)}
 
 				<Text className="text-center text-zinc-500 text-xs mt-2 mb-4">Prometheus v1.0.0 · Plajta 2026</Text>
 			</ScrollView>

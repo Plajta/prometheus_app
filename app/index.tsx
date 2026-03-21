@@ -337,24 +337,22 @@ export default function DeviceScreen() {
 							isConnected={isConnected}
 							onPress={() => bottomSheetRef.current?.present()}
 						/>
-						{isConnected && (
-							<Pressable
-								onPress={() => router.push("/settings")}
-								className="active:opacity-60"
-								style={{
-									width: 36,
-									height: 36,
-									borderRadius: 12,
-									alignItems: "center",
-									justifyContent: "center",
-									backgroundColor: "#eab30820",
-									borderWidth: 1,
-									borderColor: "#eab30850",
-								}}
-							>
-								<Ionicons name="settings" size={18} color="#eab308" />
-							</Pressable>
-						)}
+						<Pressable
+							onPress={() => router.push("/settings")}
+							className="active:opacity-60"
+							style={{
+								width: 36,
+								height: 36,
+								borderRadius: 12,
+								alignItems: "center",
+								justifyContent: "center",
+								backgroundColor: "#eab30820",
+								borderWidth: 1,
+								borderColor: "#eab30850",
+							}}
+						>
+							<Ionicons name="settings" size={18} color="#eab308" />
+						</Pressable>
 					</View>
 				</View>
 			</View>
