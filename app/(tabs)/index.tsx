@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, ScrollView, Pressable, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 type DoseStatus = "waiting" | "taken" | "missed" | "skipped";
@@ -199,6 +199,7 @@ export default function TodayScreen() {
 	const bleConnected = true;
 	const lowStockMed = "Metformin";
 	const lowStockDays = 5;
+	const insets = useSafeAreaInsets();
 
 	const allDoses = groups.flatMap((g) => g.doses);
 	const takenCount = allDoses.filter((d) => d.status === "taken").length;
@@ -238,8 +239,8 @@ export default function TodayScreen() {
 	}
 
 	return (
-		<SafeAreaView className="flex-1 bg-zinc-50 dark:bg-zinc-950">
-			<ScrollView showsVerticalScrollIndicator={false}>
+		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
+			<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
 				{/* Header */}
 				<View className="px-4 pt-2 pb-5">
 					<View className="flex-row items-start justify-between">
@@ -307,6 +308,6 @@ export default function TodayScreen() {
 					))}
 				</View>
 			</ScrollView>
-		</SafeAreaView>
+		</View>
 	);
 }

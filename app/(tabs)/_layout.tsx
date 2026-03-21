@@ -35,7 +35,7 @@ export default function TabsLayout() {
 				tabBarActiveTintColor: "#14b8a6",
 				tabBarInactiveTintColor: isDark ? "#52525b" : "#a1a1aa",
 				tabBarLabelStyle: {
-					fontSize: 11,
+					fontSize: 10,
 					fontWeight: "600",
 					marginTop: 2,
 				},
@@ -63,6 +63,20 @@ export default function TabsLayout() {
 						<TabIcon
 							name="medkit"
 							outlineName="medkit-outline"
+							focused={focused}
+							color={color}
+						/>
+					),
+				}}
+			/>
+			<Tabs.Screen
+				name="device"
+				options={{
+					title: "Lékovka",
+					tabBarIcon: ({ focused, color }) => (
+						<TabIcon
+							name="hardware-chip"
+							outlineName="hardware-chip-outline"
 							focused={focused}
 							color={color}
 						/>

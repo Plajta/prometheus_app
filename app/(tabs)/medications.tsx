@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, Pressable } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
@@ -122,9 +122,10 @@ function MedicationCard({ medication }: { medication: Medication }) {
 
 export default function MedicationsScreen() {
 	const router = useRouter();
+	const insets = useSafeAreaInsets();
 
 	return (
-		<SafeAreaView className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
 			{/* Header */}
 			<View className="px-4 pt-2 pb-4 flex-row items-center justify-between">
 				<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Léky</Text>
@@ -158,6 +159,6 @@ export default function MedicationsScreen() {
 					</>
 				)}
 			</ScrollView>
-		</SafeAreaView>
+		</View>
 	);
 }

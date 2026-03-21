@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, ScrollView, Pressable, Switch, useColorScheme } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
@@ -92,9 +92,10 @@ function Section({
 export default function SettingsScreen() {
 	const [caregiverNotif, setCaregiverNotif] = useState(false);
 	const router = useRouter();
+	const insets = useSafeAreaInsets();
 
 	return (
-		<SafeAreaView className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
 			<ScrollView
 				showsVerticalScrollIndicator={false}
 				contentContainerStyle={{ paddingBottom: 40 }}
@@ -240,6 +241,6 @@ export default function SettingsScreen() {
 					Lékovka v1.0.0 · Prometheus
 				</Text>
 			</ScrollView>
-		</SafeAreaView>
+		</View>
 	);
 }

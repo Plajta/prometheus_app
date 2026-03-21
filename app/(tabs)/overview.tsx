@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, ScrollView, Pressable, useColorScheme } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 type DayStatus = "full" | "partial" | "missed" | "future";
@@ -152,8 +152,9 @@ const WEEKLY_DATA = [
 ];
 
 export default function OverviewScreen() {
+	const insets = useSafeAreaInsets();
 	return (
-		<SafeAreaView className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
 			<ScrollView
 				showsVerticalScrollIndicator={false}
 				contentContainerStyle={{ paddingBottom: 40 }}
@@ -203,6 +204,6 @@ export default function OverviewScreen() {
 					<Ionicons name="chevron-forward" size={16} color="#52525b" />
 				</Pressable>
 			</ScrollView>
-		</SafeAreaView>
+		</View>
 	);
 }
