@@ -1,4 +1,14 @@
-import { View, Text, Switch, Alert, Pressable } from "react-native";
+import {
+	View,
+	Text,
+	Switch,
+	Alert,
+	Pressable,
+	LayoutAnimation,
+	Platform,
+	UIManager,
+	useColorScheme,
+} from "react-native";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
@@ -11,11 +21,12 @@ import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
 import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
 import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
 
-// ─── Slot status ──────────────────────────────────────────────────────────────
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+	UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type SlotStatus = "past" | "present" | "future";
 
-/** Vrátí pondělí tohoto týdne (půlnoc). */
 function getThisMonday(): Date {
 	const d = new Date();
 	const day = d.getDay(); // 0=Ne
@@ -24,10 +35,6 @@ function getThisMonday(): Date {
 	return d;
 }
 
-/**
- * Pro každý slot (0–6 = Po–Ne) spočítá status vůči aktuálnímu času.
- * col: "A" = ráno, "B" = večer.
- */
 function computeStatuses(
 	morningH: number,
 	morningM: number,
@@ -68,49 +75,119 @@ function computeStatuses(
 	};
 }
 
-// ─── SlotCell ─────────────────────────────────────────────────────────────────
-
 type StyleKey = SlotStatus | "overdue";
 
 const STATUS_STYLE: Record<StyleKey, { bg: string; border: string; text: string; sub: string; dot: string }> = {
-	past:    { bg: "#dcfce7", border: "#22c55e", text: "#166534", sub: "#16a34a", dot: "#22c55e" },
+	past: { bg: "#dcfce7", border: "#22c55e", text: "#166534", sub: "#16a34a", dot: "#22c55e" },
 	present: { bg: "#fef9c3", border: "#eab308", text: "#713f12", sub: "#ca8a04", dot: "#eab308" },
-	future:  { bg: "#e0f2fe", border: "#38bdf8", text: "#075985", sub: "#0284c7", dot: "#38bdf8" },
+	future: { bg: "#e0f2fe", border: "#38bdf8", text: "#075985", sub: "#0284c7", dot: "#38bdf8" },
 	overdue: { bg: "#fee2e2", border: "#ef4444", text: "#7f1d1d", sub: "#dc2626", dot: "#ef4444" },
 };
 
 const STATUS_STYLE_DARK: Record<StyleKey, { bg: string; border: string; text: string; sub: string; dot: string }> = {
-	past:    { bg: "#052e16", border: "#22c55e", text: "#bbf7d0", sub: "#4ade80", dot: "#22c55e" },
+	past: { bg: "#052e16", border: "#22c55e", text: "#bbf7d0", sub: "#4ade80", dot: "#22c55e" },
 	present: { bg: "#1a1200", border: "#eab308", text: "#fef08a", sub: "#facc15", dot: "#eab308" },
-	future:  { bg: "#082f49", border: "#38bdf8", text: "#bae6fd", sub: "#7dd3fc", dot: "#38bdf8" },
+	future: { bg: "#082f49", border: "#38bdf8", text: "#bae6fd", sub: "#7dd3fc", dot: "#38bdf8" },
 	overdue: { bg: "#2d0a0a", border: "#ef4444", text: "#fecaca", sub: "#f87171", dot: "#ef4444" },
 };
 
-function SlotCell({ slot, status }: { slot: Slot; status: SlotStatus }) {
-	const isDark = require("react-native").useColorScheme() === "dark";
+const SPLIT_ANIM = {
+	duration: 220,
+	create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+	update: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleXY },
+	delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+};
+
+function SlotCell({
+	slot,
+	status,
+	onSetTaken,
+}: {
+	slot: Slot;
+	status: SlotStatus;
+	onSetTaken: (taken: boolean) => void;
+}) {
+	const isDark = useColorScheme() === "dark";
 	const key: StyleKey = status === "past" && !slot.taken ? "overdue" : status;
 	const s = (isDark ? STATUS_STYLE_DARK : STATUS_STYLE)[key];
+	const [split, setSplit] = useState(false);
+	const canInteract = status === "past";
+	const suppressPress = useRef(false);
+
+	const handleLongPress = () => {
+		if (!canInteract) return;
+		suppressPress.current = true;
+		LayoutAnimation.configureNext(SPLIT_ANIM);
+		setSplit(true);
+	};
+
+	const handleChoose = (taken: boolean) => {
+		LayoutAnimation.configureNext(SPLIT_ANIM);
+		setSplit(false);
+		onSetTaken(taken);
+	};
 
 	return (
-		<View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8,
-			borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
-			backgroundColor: s.bg, borderWidth: 1.5, borderColor: s.border }}>
-			<View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: s.dot, flexShrink: 0 }} />
-			<View style={{ flex: 1, gap: 2 }}>
-				<Text style={{ fontSize: 9, fontWeight: "700", letterSpacing: 0.5, color: s.sub }}>{slot.id}</Text>
-				<Text style={{ fontSize: 13, fontWeight: "700", color: s.text, lineHeight: 15 }} numberOfLines={1}>
-					{slot.dayName}
-				</Text>
-			</View>
+		<View className="flex-1 flex-row gap-0.5">
+			{split ? (
+				<>
+					<Pressable
+						onPress={() => {
+							if (suppressPress.current) { suppressPress.current = false; return; }
+							handleChoose(true);
+						}}
+						className="flex-1 items-center justify-center py-2 rounded-xl border-[1.5px]"
+						style={{ backgroundColor: isDark ? "#052e16" : "#dcfce7", borderColor: "#22c55e" }}
+					>
+						<Ionicons name="checkmark" size={18} color="#22c55e" />
+						<Text className="text-[9px] font-bold mt-0.5" style={{ color: "#22c55e" }}>Vzato</Text>
+					</Pressable>
+					<Pressable
+						onPress={() => {
+							if (suppressPress.current) { suppressPress.current = false; return; }
+							handleChoose(false);
+						}}
+						className="flex-1 items-center justify-center py-2 rounded-xl border-[1.5px]"
+						style={{ backgroundColor: isDark ? "#2d0a0a" : "#fee2e2", borderColor: "#ef4444" }}
+					>
+						<Ionicons name="close" size={18} color="#ef4444" />
+						<Text className="text-[9px] font-bold mt-0.5" style={{ color: "#ef4444" }}>Přeskočit</Text>
+					</Pressable>
+				</>
+			) : (
+				<Pressable
+					onLongPress={handleLongPress}
+					delayLongPress={400}
+					onPress={() => {
+						if (suppressPress.current) { suppressPress.current = false; return; }
+					}}
+					className="flex-1 flex-row items-center gap-2 rounded-xl px-2.5 py-1.5 border-[1.5px]"
+					style={{ backgroundColor: s.bg, borderColor: s.border }}
+				>
+					<View className="w-[7px] h-[7px] shrink-0 rounded-full" style={{ backgroundColor: s.dot }} />
+					<View className="flex-1 gap-0.5">
+						<Text className="text-[9px] font-bold tracking-wide" style={{ color: s.sub }}>{slot.id}</Text>
+						<Text className="text-[13px] font-bold leading-[15px]" style={{ color: s.text }} numberOfLines={1}>
+							{slot.dayName}
+						</Text>
+					</View>
+					{canInteract && (
+						<View className="absolute top-1 right-1.5">
+							<Ionicons name="ellipsis-horizontal" size={12} color={s.sub} style={{ opacity: 0.6 }} />
+						</View>
+					)}
+				</Pressable>
+			)}
 		</View>
 	);
 }
 
+
 const LEGEND: { key: StyleKey; label: string }[] = [
-	{ key: "past",    label: "Vyzvednuto"   },
-	{ key: "present", label: "Nyní"         },
-	{ key: "future",  label: "Nadcházející" },
-	{ key: "overdue", label: "Zmeškáno"     },
+	{ key: "past", label: "Vyzvednuto" },
+	{ key: "present", label: "Nyní" },
+	{ key: "future", label: "Nadcházející" },
+	{ key: "overdue", label: "Zmeškáno" },
 ];
 
 export default function DeviceScreen() {
@@ -125,7 +202,26 @@ export default function DeviceScreen() {
 	const temperature = useBleDeviceStore((state) => state.temperature);
 	const slotsA = useBleDeviceStore((state) => state.slotsA);
 	const slotsB = useBleDeviceStore((state) => state.slotsB);
+	const setSlotTaken = useBleDeviceStore((state) => state.setSlotTaken);
 	const lastSyncTime = useBleDeviceStore((state) => state.lastSyncTime);
+
+	const handleSetTaken = useCallback(
+		(col: "A" | "B", id: string, taken: boolean) => {
+			setSlotTaken(col, id, taken);
+			// Rebuild the 14-bit integer and write to board
+			const { slotsA: a, slotsB: b } = useBleDeviceStore.getState();
+			let cupState = 0;
+			a.forEach((s, i) => {
+				if (s.taken) cupState |= 1 << i;
+			});
+			b.forEach((s, i) => {
+				if (s.taken) cupState |= 1 << (i + 7);
+			});
+			BleWrapperModule.writeCupState(cupState).catch(console.error);
+			updateDeviceSettings({ cup_state: cupState });
+		},
+		[setSlotTaken],
+	);
 
 	const loadSettings = useCallback(() => {
 		const s = getDeviceSettings();
@@ -201,18 +297,30 @@ export default function DeviceScreen() {
 						<View className="flex-row gap-1.5 pb-2">
 							<View className="flex-1 items-center gap-0.5">
 								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">RÁNO</Text>
-								<Text className="text-zinc-400 dark:text-zinc-500 text-[11px] font-medium">{alarmLabels.morning}</Text>
+								<Text className="text-zinc-400 dark:text-zinc-500 text-[11px] font-medium">
+									{alarmLabels.morning}
+								</Text>
 							</View>
 							<View className="flex-1 items-center gap-0.5">
 								<Text className="text-zinc-900 dark:text-white text-[14px] font-semibold">VEČER</Text>
-								<Text className="text-zinc-400 dark:text-zinc-500 text-[11px] font-medium">{alarmLabels.evening}</Text>
+								<Text className="text-zinc-400 dark:text-zinc-500 text-[11px] font-medium">
+									{alarmLabels.evening}
+								</Text>
 							</View>
 						</View>
 
 						{slotsA.map((slotA, i) => (
 							<View key={i} className="flex-1 flex-row gap-1.5">
-								<SlotCell slot={slotA} status={slotStatuses.statusA[i]} />
-								<SlotCell slot={slotsB[i]} status={slotStatuses.statusB[i]} />
+								<SlotCell
+									slot={slotA}
+									status={slotStatuses.statusA[i]}
+									onSetTaken={(t) => handleSetTaken("A", slotA.id, t)}
+								/>
+								<SlotCell
+									slot={slotsB[i]}
+									status={slotStatuses.statusB[i]}
+									onSetTaken={(t) => handleSetTaken("B", slotsB[i].id, t)}
+								/>
 							</View>
 						))}
 					</View>
@@ -220,7 +328,14 @@ export default function DeviceScreen() {
 					<View className="mt-3.5 flex-row justify-center gap-5">
 						{LEGEND.map((item) => (
 							<View key={item.label} className="flex-row items-center gap-1.5">
-								<View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: STATUS_STYLE[item.key].dot }} />
+								<View
+									style={{
+										width: 8,
+										height: 8,
+										borderRadius: 2,
+										backgroundColor: STATUS_STYLE[item.key].dot,
+									}}
+								/>
 								<Text className="text-zinc-500 text-[11px]">{item.label}</Text>
 							</View>
 						))}

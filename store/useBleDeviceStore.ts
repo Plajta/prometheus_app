@@ -33,6 +33,7 @@ export interface DeviceState {
 	slotsA: Slot[];
 	slotsB: Slot[];
 	setCupState: (state: number) => void;
+	setSlotTaken: (col: "A" | "B", id: string, taken: boolean) => void;
 	lastSyncTime: Date | null;
 	setLastSyncTime: (date: Date | null) => void;
 }
@@ -57,6 +58,14 @@ export const useBleDeviceStore = create<DeviceState>((set) => ({
 				taken: ((stateNum >> (i + 7)) & 1) === 1,
 			}));
 			return { slotsA: newA, slotsB: newB };
+		}),
+	setSlotTaken: (col, id, taken) =>
+		set((state) => {
+			if (col === "A") {
+				return { slotsA: state.slotsA.map((s) => s.id === id ? { ...s, taken } : s) };
+			} else {
+				return { slotsB: state.slotsB.map((s) => s.id === id ? { ...s, taken } : s) };
+			}
 		}),
 	lastSyncTime: null,
 	setLastSyncTime: (date) => set({ lastSyncTime: date }),
