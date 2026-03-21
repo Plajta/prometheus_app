@@ -154,20 +154,6 @@ export default function DeviceScreen() {
 								Světelná indikace
 							</Text>
 						</View>
-
-						<Switch
-							value={ledOn}
-							onValueChange={async (val) => {
-								try {
-									await BleWrapperModule.setLed(val);
-									setLedOn(val);
-								} catch (e) {
-									console.error(e);
-								}
-							}}
-							trackColor={{ false: "#3f3f46", true: "#eab308" }}
-							thumbColor="#ffffff"
-						/>
 					</View>
 
 					<View className="flex-row items-center justify-between p-4 bg-zinc-100 dark:bg-zinc-800/60 rounded-[18px] border border-zinc-200 dark:border-zinc-800/80">

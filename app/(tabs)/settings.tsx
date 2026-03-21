@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Switch, useColorScheme, FlatList, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, Switch, useColorScheme, useWindowDimensions, Alert } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { useDeviceStore } from "~/store/useDeviceStore";
 import { getWatching, addFamilyRelation, deleteFamilyRelation, type FamilyRelation } from "~/lib/notifications";
+import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -121,14 +122,116 @@ function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle
 	);
 }
 
+// ─── Alarms sheet ─────────────────────────────────────────────────────────────
+
+function AlarmsSheet({ onClose }: { onClose: () => void }) {
+	const isDark = useColorScheme() === "dark";
+	const [morning, setMorning] = useState("08:00");
+	const [evening, setEvening] = useState("20:00");
+	const [escalation, setEscalation] = useState("15");
+	const [loading, setLoading] = useState(false);
+
+	const handleSave = async () => {
+		setLoading(true);
+		try {
+			const [mH, mM] = morning.split(":").map(Number);
+			if (!isNaN(mH) && !isNaN(mM)) await BleWrapperModule.setAlarmMorning(mH, mM);
+
+			const [eH, eM] = evening.split(":").map(Number);
+			if (!isNaN(eH) && !isNaN(eM)) await BleWrapperModule.setAlarmEvening(eH, eM);
+
+			const esc = Number(escalation);
+			if (!isNaN(esc)) await BleWrapperModule.setAlarmInterval(esc * 60);
+
+			Alert.alert("Úspěch", "Časy upozornění byly uloženy do lékovky.");
+			onClose();
+		} catch (e) {
+			console.error("Save alarms failed", e);
+			Alert.alert("Chyba", "Nepodařilo se uložit nastavení.");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const inputStyle = {
+		backgroundColor: isDark ? "#27272a" : "#f4f4f5",
+		borderWidth: 1,
+		borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+	};
+
+	return (
+		<View className="flex-1 pt-2 pb-6 gap-5">
+			<View className="flex-row items-center justify-between px-1">
+				<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+					Nastavení časů upozornění
+				</Text>
+				<Pressable onPress={onClose} className="active:opacity-60">
+					<Ionicons name="close" size={22} color="#71717a" />
+				</Pressable>
+			</View>
+
+			<View className="flex-1 gap-4 px-1">
+				<View className="gap-2">
+					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+						Ranní léky (HH:MM)
+					</Text>
+					<BottomSheetTextInput
+						value={morning}
+						onChangeText={setMorning}
+						placeholder="08:00"
+						placeholderTextColor="#71717a"
+						className="text-zinc-900 dark:text-white text-[16px] px-4 py-3.5 rounded-2xl"
+						style={inputStyle}
+					/>
+				</View>
+
+				<View className="gap-2">
+					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+						Večerní léky (HH:MM)
+					</Text>
+					<BottomSheetTextInput
+						value={evening}
+						onChangeText={setEvening}
+						placeholder="20:00"
+						placeholderTextColor="#71717a"
+						className="text-zinc-900 dark:text-white text-[16px] px-4 py-3.5 rounded-2xl"
+						style={inputStyle}
+					/>
+				</View>
+
+				<View className="gap-2">
+					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+						Eskalace / Zpoždění (minuty)
+					</Text>
+					<BottomSheetTextInput
+						value={escalation}
+						onChangeText={setEscalation}
+						keyboardType="numeric"
+						placeholder="15"
+						placeholderTextColor="#71717a"
+						className="text-zinc-900 dark:text-white text-[16px] px-4 py-3.5 rounded-2xl"
+						style={inputStyle}
+					/>
+				</View>
+			</View>
+
+			<Pressable
+				onPress={handleSave}
+				disabled={loading}
+				className="rounded-2xl py-4 items-center active:opacity-80"
+				style={{ backgroundColor: "#2563eb" }}
+			>
+				<Text className="font-semibold text-[15px] text-white">
+					{loading ? "Ukládám…" : "Uložit do lékovky"}
+				</Text>
+			</Pressable>
+		</View>
+	);
+}
+
 // ─── Family sheet ─────────────────────────────────────────────────────────────
 
 type FamilyView = "list" | "camera" | "nameInput";
-
-/** Zkrátí device_id na čitelný tvar: prvních 8 znaků velkými písmeny. */
-function shortId(id: string) {
-	return id.replace(/-/g, "").slice(0, 8).toUpperCase();
-}
 
 function FamilySheet() {
 	const isDark = useColorScheme() === "dark";
@@ -332,30 +435,29 @@ function FamilySheet() {
 						</Text>
 					</View>
 				) : (
-					<FlatList
-						data={relations}
-						keyExtractor={(r) => r.id}
-						scrollEnabled={false}
-						ItemSeparatorComponent={() => <View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-1" />}
-						renderItem={({ item }) => (
-							<View className="flex-row items-center gap-3 py-3 px-1">
-								<View className="w-10 h-10 rounded-full bg-blue-500/15 items-center justify-center">
-									<Ionicons name="person" size={18} color="#3b82f6" />
+					<View>
+						{relations.map((item, index) => (
+							<View key={item.id}>
+								{index > 0 && <View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-1" />}
+								<View className="flex-row items-center gap-3 py-3 px-1">
+									<View className="w-10 h-10 rounded-full bg-blue-500/15 items-center justify-center">
+										<Ionicons name="person" size={18} color="#3b82f6" />
+									</View>
+									<View className="flex-1 gap-0.5">
+										<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
+											{item.name}
+										</Text>
+									</View>
+									<Pressable
+										onPress={() => handleDelete(item)}
+										className="w-8 h-8 items-center justify-center active:opacity-60"
+									>
+										<Ionicons name="trash-outline" size={17} color="#ef4444" />
+									</Pressable>
 								</View>
-								<View className="flex-1 gap-0.5">
-									<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
-										{item.name}
-									</Text>
-								</View>
-								<Pressable
-									onPress={() => handleDelete(item)}
-									className="w-8 h-8 items-center justify-center active:opacity-60"
-								>
-									<Ionicons name="trash-outline" size={17} color="#ef4444" />
-								</Pressable>
 							</View>
-						)}
-					/>
+						))}
+					</View>
 				)}
 			</View>
 
@@ -380,6 +482,7 @@ export default function SettingsScreen() {
 
 	const caregiverSheetRef = useRef<BottomSheetModal>(null);
 	const familySheetRef = useRef<BottomSheetModal>(null);
+	const alarmsSheetRef = useRef<BottomSheetModal>(null);
 	const snapPoints = useMemo(() => ["70%"], []);
 
 	const renderBackdrop = useCallback(
@@ -431,6 +534,7 @@ export default function SettingsScreen() {
 						label="Čas připomenutí"
 						value="z plánu"
 						chevron
+						onPress={() => alarmsSheetRef.current?.present()}
 					/>
 					<Divider />
 					<SettingRow
@@ -440,6 +544,7 @@ export default function SettingsScreen() {
 						label="Eskalace po"
 						value="15 min"
 						chevron
+						onPress={() => alarmsSheetRef.current?.present()}
 					/>
 				</Section>
 
@@ -487,6 +592,13 @@ export default function SettingsScreen() {
 			<BottomSheetModal ref={familySheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<FamilySheet />
+				</BottomSheetView>
+			</BottomSheetModal>
+
+			{/* Časy upozornění sheet */}
+			<BottomSheetModal ref={alarmsSheetRef} {...sheetProps}>
+				<BottomSheetView className="flex-1 h-full px-6 py-2">
+					<AlarmsSheet onClose={() => alarmsSheetRef.current?.dismiss()} />
 				</BottomSheetView>
 			</BottomSheetModal>
 		</View>

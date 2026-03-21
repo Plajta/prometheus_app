@@ -54,24 +54,42 @@ export default function Layout() {
 		if (Platform.OS === "android") {
 			useBleDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
-			const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
+			const connSub = BleWrapperModule.addListener("onDeviceConnected", async (event) => {
 				useBleDeviceStore.getState().setIsConnected(event.connected);
+				if (event.connected) {
+					try {
+						const stateStr = await BleWrapperModule.readCupState();
+						useBleDeviceStore.getState().setCupState(parseInt(stateStr, 10));
+						const batteryStr = await BleWrapperModule.readBattery();
+						useBleDeviceStore.getState().setBattery(parseInt(batteryStr, 10));
+					} catch (e) {
+						console.error("Failed to read initial state on connect:", e);
+					}
+				}
 			});
 
 			const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
 				useBleDeviceStore.getState().setIsConnected(event.connected);
 			});
 
-			const buttonSub = BleWrapperModule.addListener("onButtonPress", (event) => {
-				if (event.pressed) {
-					useBleDeviceStore.getState().toggleSlotB6();
-				}
+			const tempSub = BleWrapperModule.addListener("onTemperatureData", (event) => {
+				useBleDeviceStore.getState().setTemperature(event.temperature);
+			});
+
+			const batterySub = BleWrapperModule.addListener("onBatteryLevel", (event) => {
+				useBleDeviceStore.getState().setBattery(event.level);
+			});
+
+			const cupSub = BleWrapperModule.addListener("onCupStateChanged", (event) => {
+				useBleDeviceStore.getState().setCupState(event.state);
 			});
 
 			return () => {
 				connSub.remove();
 				disconnSub.remove();
-				buttonSub.remove();
+				tempSub.remove();
+				batterySub.remove();
+				cupSub.remove();
 			};
 		} else {
 			useBleDeviceStore.getState().setIsConnected(true);

@@ -32,7 +32,7 @@ interface DeviceState {
 	setTemperature: (temp: number | null) => void;
 	slotsA: Slot[];
 	slotsB: Slot[];
-	toggleSlotB6: () => void;
+	setCupState: (state: number) => void;
 }
 
 export const useBleDeviceStore = create<DeviceState>((set) => ({
@@ -44,13 +44,16 @@ export const useBleDeviceStore = create<DeviceState>((set) => ({
 	setTemperature: (temp) => set({ temperature: temp }),
 	slotsA: initialColA,
 	slotsB: initialColB,
-	toggleSlotB6: () =>
+	setCupState: (stateNum) =>
 		set((state) => {
-			const newB = [...state.slotsB];
-			const b6Index = newB.findIndex((s) => s.id === "B6");
-			if (b6Index !== -1) {
-				newB[b6Index] = { ...newB[b6Index], taken: !newB[b6Index].taken };
-			}
-			return { slotsB: newB };
+			const newA = state.slotsA.map((slot, i) => ({
+				...slot,
+				taken: ((stateNum >> i) & 1) === 1,
+			}));
+			const newB = state.slotsB.map((slot, i) => ({
+				...slot,
+				taken: ((stateNum >> (i + 7)) & 1) === 1,
+			}));
+			return { slotsA: newA, slotsB: newB };
 		}),
 }));
