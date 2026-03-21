@@ -50,27 +50,31 @@ export default function Layout() {
 			}
 		})();
 
-		useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
+		if (Platform.OS === "android") {
+			useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
-		const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
-			useDeviceStore.getState().setIsConnected(event.connected);
-		});
+			const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
+				useDeviceStore.getState().setIsConnected(event.connected);
+			});
 
-		const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
-			useDeviceStore.getState().setIsConnected(event.connected);
-		});
+			const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
+				useDeviceStore.getState().setIsConnected(event.connected);
+			});
 
-		const buttonSub = BleWrapperModule.addListener("onButtonPress", (event) => {
-			if (event.pressed) {
-				useDeviceStore.getState().toggleSlotB6();
-			}
-		});
+			const buttonSub = BleWrapperModule.addListener("onButtonPress", (event) => {
+				if (event.pressed) {
+					useDeviceStore.getState().toggleSlotB6();
+				}
+			});
 
-		return () => {
-			connSub.remove();
-			disconnSub.remove();
-			buttonSub.remove();
-		};
+			return () => {
+				connSub.remove();
+				disconnSub.remove();
+				buttonSub.remove();
+			};
+		} else {
+			useDeviceStore.getState().setIsConnected(true);
+		}
 	}, []);
 
 	return (
