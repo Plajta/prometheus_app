@@ -1,15 +1,26 @@
-import { useState } from "react";
-import { View, Text, ScrollView, Pressable, Switch, useColorScheme } from "react-native";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { View, Text, ScrollView, Pressable, Switch, useColorScheme, FlatList, useWindowDimensions } from "react-native";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import QRCode from "react-native-qrcode-svg";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { useDeviceStore } from "~/store/useDeviceStore";
+import {
+	getWatching,
+	addFamilyRelation,
+	deleteFamilyRelation,
+	type FamilyRelation,
+} from "~/lib/notifications";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
+// ─── SettingRow ───────────────────────────────────────────────────────────────
+
 interface RowProps {
 	icon: IoniconsName;
-	iconBgDark?: string;
-	iconBgLight?: string;
+	iconContainerClassName?: string;
 	iconColor?: string;
 	label: string;
 	value?: string;
@@ -22,8 +33,7 @@ interface RowProps {
 
 function SettingRow({
 	icon,
-	iconBgDark = "#27272a",
-	iconBgLight = "#f4f4f5", // zinc-100
+	iconContainerClassName = "bg-zinc-100 dark:bg-zinc-800",
 	iconColor = "#eab308",
 	label,
 	value,
@@ -39,10 +49,7 @@ function SettingRow({
 			onPress={onPress}
 			className="flex-row items-center px-4 py-3.5 active:bg-zinc-100 dark:active:bg-zinc-800/40"
 		>
-			<View
-				style={{ backgroundColor: isDark ? iconBgDark : iconBgLight }}
-				className="w-9 h-9 rounded-xl items-center justify-center mr-3"
-			>
+			<View className={`w-9 h-9 rounded-xl items-center justify-center mr-3 ${iconContainerClassName}`}>
 				<Ionicons name={icon} size={17} color={iconColor} />
 			</View>
 			<Text
@@ -50,15 +57,13 @@ function SettingRow({
 			>
 				{label}
 			</Text>
-			{value !== undefined && (
-				<Text className="text-zinc-500 text-sm mr-1.5">{value}</Text>
-			)}
+			{value !== undefined && <Text className="text-zinc-500 text-sm mr-1.5">{value}</Text>}
 			{toggle !== undefined && onToggle && (
 				<Switch
 					value={toggle}
 					onValueChange={onToggle}
 					trackColor={{ false: isDark ? "#3f3f46" : "#e4e4e7", true: "#ca8a04" }}
-					thumbColor={toggle ? "#5eead4" : (isDark ? "#a1a1aa" : "#ffffff")}
+					thumbColor={toggle ? "#5eead4" : isDark ? "#a1a1aa" : "#ffffff"}
 				/>
 			)}
 			{chevron && <Ionicons name="chevron-forward" size={15} color="#a1a1aa" />}
@@ -70,18 +75,10 @@ function Divider() {
 	return <View className="h-px bg-zinc-200 dark:bg-zinc-800 mx-4" />;
 }
 
-function Section({
-	title,
-	children,
-}: {
-	title: string;
-	children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
 	return (
 		<View className="mb-5">
-			<Text className="text-zinc-500 text-xs font-bold tracking-widest uppercase px-4 mb-2">
-				{title}
-			</Text>
+			<Text className="text-zinc-500 text-xs font-bold tracking-widest uppercase px-4 mb-2">{title}</Text>
 			<View className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden mx-4 border border-zinc-200 dark:border-zinc-800">
 				{children}
 			</View>
@@ -89,67 +86,345 @@ function Section({
 	);
 }
 
+// ─── Caregiver QR sheet ───────────────────────────────────────────────────────
+
+function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle: (v: boolean) => void }) {
+	const isDark = useColorScheme() === "dark";
+	const { deviceId } = useDeviceStore();
+
+	return (
+		<View className="flex-1 gap-5 pt-2 pb-6">
+			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">
+				Notifikace příbuzným
+			</Text>
+
+			<View className="flex-1 items-center justify-center gap-5">
+				{deviceId ? (
+					<View
+						className="rounded-[24px] p-5 bg-white"
+						style={{
+							shadowColor: "#000",
+							shadowOffset: { width: 0, height: 4 },
+							shadowOpacity: isDark ? 0.5 : 0.1,
+							shadowRadius: 16,
+							elevation: 8,
+						}}
+					>
+						<QRCode value={deviceId} size={200} color="#09090b" backgroundColor="#ffffff" quietZone={0} />
+					</View>
+				) : (
+					<View className="rounded-[24px] items-center justify-center w-[230px] h-[230px] bg-zinc-100 dark:bg-zinc-800">
+						<Text className="text-zinc-500 text-[13px]">Načítám…</Text>
+					</View>
+				)}
+
+				<Text className="text-zinc-500 text-[13px] text-center leading-5 px-6">
+					Nechte příbuzné naskenovat tento kód, aby mohli dostávat upozornění o vašem užívání léků.
+				</Text>
+			</View>
+		</View>
+	);
+}
+
+// ─── Family sheet ─────────────────────────────────────────────────────────────
+
+type FamilyView = "list" | "camera" | "confirm";
+
+/** Zkrátí device_id na čitelný tvar: prvních 8 znaků velkými písmeny. */
+function shortId(id: string) {
+	return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+function FamilySheet() {
+	const isDark = useColorScheme() === "dark";
+	const { deviceId } = useDeviceStore();
+	const { height } = useWindowDimensions();
+	// 70 % výška sheetu − hlavička − popis − padding
+	const cameraHeight = Math.round(height * 0.7 - 140);
+
+	const [view, setView] = useState<FamilyView>("list");
+	const [relations, setRelations] = useState<FamilyRelation[]>([]);
+	/** device_id naskenovaného příbuzného */
+	const [scannedDeviceId, setScannedDeviceId] = useState("");
+	const [loading, setLoading] = useState(false);
+	const scannedRef = useRef(false);
+
+	const [permission, requestPermission] = useCameraPermissions();
+
+	// Načti, koho já (watcher) sleduji
+	useEffect(() => {
+		if (!deviceId) return;
+		getWatching(deviceId)
+			.then((data) => setRelations(Array.isArray(data) ? data : []))
+			.catch(() => {});
+	}, [deviceId]);
+
+	// ── Camera ────────────────────────────────────────────────────────────────
+
+	const handleOpenCamera = async () => {
+		if (!permission?.granted) {
+			const result = await requestPermission();
+			if (!result.granted) return;
+		}
+		scannedRef.current = false;
+		setView("camera");
+	};
+
+	const handleBarcodeScanned = ({ data }: { data: string }) => {
+		if (scannedRef.current) return;
+		scannedRef.current = true;
+		setScannedDeviceId(data);
+		setView("confirm");
+	};
+
+	// ── Add relation ──────────────────────────────────────────────────────────
+
+	const handleAdd = async () => {
+		if (!deviceId || !scannedDeviceId) return;
+		setLoading(true);
+		try {
+			// Já (watcher) sleduji naskenovaného (watched)
+			const { id } = await addFamilyRelation(deviceId, scannedDeviceId);
+			const newRelation: FamilyRelation = {
+				id,
+				watcher_device_id: deviceId,
+				watched_device_id: scannedDeviceId,
+				created_at: new Date().toISOString(),
+			};
+			setRelations((prev) => (Array.isArray(prev) ? prev : []).concat(newRelation));
+			setView("list");
+			setScannedDeviceId("");
+		} catch {
+			// server error — uživatel může zkusit znovu
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleDelete = async (relation: FamilyRelation) => {
+		try {
+			await deleteFamilyRelation(relation.id);
+			setRelations((prev) =>
+				(Array.isArray(prev) ? prev : []).filter((r) => r.id !== relation.id),
+			);
+		} catch {}
+	};
+
+	// ── Views ─────────────────────────────────────────────────────────────────
+
+	// Kamera + QR skener
+	if (view === "camera") {
+		return (
+			<View className="flex-1 pt-2 pb-6 gap-4">
+				<View className="flex-row items-center justify-between px-1">
+					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+						Přidat příbuzného
+					</Text>
+					<Pressable onPress={() => setView("list")} className="active:opacity-60">
+						<Ionicons name="close" size={22} color="#71717a" />
+					</Pressable>
+				</View>
+
+				<View style={{ height: cameraHeight }} className="rounded-[20px] overflow-hidden">
+					<CameraView
+						style={{ width: "100%", height: "100%" }}
+						facing="back"
+						barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+						onBarcodeScanned={handleBarcodeScanned}
+					/>
+					{/* QR frame overlay */}
+					<View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+						<View style={{ width: 200, height: 200 }}>
+							{[
+								"top-0 left-0 border-t-[3px] border-l-[3px]",
+								"top-0 right-0 border-t-[3px] border-r-[3px]",
+								"bottom-0 left-0 border-b-[3px] border-l-[3px]",
+								"bottom-0 right-0 border-b-[3px] border-r-[3px]",
+							].map((cls, i) => (
+								<View key={i} className={`absolute w-8 h-8 border-white rounded-sm ${cls}`} />
+							))}
+						</View>
+					</View>
+				</View>
+
+				<Text className="text-zinc-500 text-[13px] text-center leading-5 px-4">
+					Naskenujte QR kód příbuzného z jeho telefonu
+				</Text>
+			</View>
+		);
+	}
+
+	// Potvrzení po scanu — žádný name field, jen device_id
+	if (view === "confirm") {
+		return (
+			<View className="flex-1 pt-2 pb-6 gap-5">
+				<View className="flex-row items-center justify-between px-1">
+					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+						Potvrdit přidání
+					</Text>
+					<Pressable onPress={() => setView("list")} className="active:opacity-60">
+						<Ionicons name="close" size={22} color="#71717a" />
+					</Pressable>
+				</View>
+
+				<View className="flex-1 items-center justify-center gap-6 px-1">
+					<View className="w-20 h-20 rounded-full bg-emerald-500/15 items-center justify-center">
+						<Ionicons name="checkmark-circle" size={40} color="#10b981" />
+					</View>
+
+					<View className="items-center gap-2">
+						<Text className="text-zinc-900 dark:text-white text-[17px] font-semibold">
+							QR kód naskenován
+						</Text>
+						{/* Zobrazíme zkrácené device_id */}
+						<View
+							className="px-4 py-2 rounded-xl"
+							style={{ backgroundColor: isDark ? "#27272a" : "#f4f4f5" }}
+						>
+							<Text className="text-zinc-500 text-[12px] font-mono tracking-widest">
+								{shortId(scannedDeviceId)}
+							</Text>
+						</View>
+					</View>
+
+					<Text className="text-zinc-500 text-[13px] text-center leading-5 px-6">
+						Budete dostávat upozornění, pokud tento příbuzný zapomene vzít léky.
+					</Text>
+				</View>
+
+				<Pressable
+					onPress={handleAdd}
+					disabled={loading}
+					className="rounded-2xl py-4 items-center active:opacity-80"
+					style={{ backgroundColor: "#2563eb" }}
+				>
+					<Text className="text-white font-semibold text-[15px]">
+						{loading ? "Přidávám…" : "Přidat příbuzného"}
+					</Text>
+				</Pressable>
+			</View>
+		);
+	}
+
+	// Seznam (výchozí view)
+	return (
+		<View className="flex-1 pt-2 pb-6 gap-4">
+			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">
+				Příbuzní
+			</Text>
+
+			<View className="flex-1">
+				{relations.length === 0 ? (
+					<View className="flex-1 items-center justify-center gap-3 pb-8">
+						<View className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 items-center justify-center">
+							<Ionicons name="people-outline" size={28} color="#71717a" />
+						</View>
+						<Text className="text-zinc-900 dark:text-white text-[15px] font-semibold">
+							Zatím žádní příbuzní
+						</Text>
+						<Text className="text-zinc-500 text-[13px] text-center leading-5 px-8">
+							Naskenujte QR kód příbuzného a budete dostávat upozornění o jeho lécích.
+						</Text>
+					</View>
+				) : (
+					<FlatList
+						data={relations}
+						keyExtractor={(r) => r.id}
+						scrollEnabled={false}
+						ItemSeparatorComponent={() => (
+							<View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-1" />
+						)}
+						renderItem={({ item }) => (
+							<View className="flex-row items-center gap-3 py-3 px-1">
+								<View className="w-10 h-10 rounded-full bg-blue-500/15 items-center justify-center">
+									<Ionicons name="person" size={18} color="#3b82f6" />
+								</View>
+								<View className="flex-1 gap-0.5">
+									<Text className="text-zinc-900 dark:text-white text-[15px] font-medium font-mono tracking-wide">
+										{shortId(item.watched_device_id)}
+									</Text>
+									<Text className="text-zinc-500 text-[11px]">Notifikace aktivní</Text>
+								</View>
+								<Pressable
+									onPress={() => handleDelete(item)}
+									className="w-8 h-8 items-center justify-center active:opacity-60"
+								>
+									<Ionicons name="trash-outline" size={17} color="#ef4444" />
+								</Pressable>
+							</View>
+						)}
+					/>
+				)}
+			</View>
+
+			<Pressable
+				onPress={handleOpenCamera}
+				className="flex-row items-center justify-center gap-2 rounded-2xl py-4 active:opacity-80"
+				style={{ backgroundColor: "#2563eb" }}
+			>
+				<Ionicons name="qr-code-outline" size={18} color="#ffffff" />
+				<Text className="text-white font-semibold text-[15px]">Přidat příbuzného</Text>
+			</Pressable>
+		</View>
+	);
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function SettingsScreen() {
 	const [caregiverNotif, setCaregiverNotif] = useState(false);
-	const router = useRouter();
 	const insets = useSafeAreaInsets();
+	const isDark = useColorScheme() === "dark";
+
+	const caregiverSheetRef = useRef<BottomSheetModal>(null);
+	const familySheetRef = useRef<BottomSheetModal>(null);
+	const snapPoints = useMemo(() => ["70%"], []);
+
+	const renderBackdrop = useCallback(
+		(props: any) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />,
+		[],
+	);
+
+	const sheetProps = {
+		snapPoints,
+		enablePanDownToClose: true,
+		enableDynamicSizing: false,
+		backdropComponent: renderBackdrop,
+		backgroundStyle: { backgroundColor: isDark ? "#18181b" : "#ffffff" },
+		handleIndicatorStyle: { backgroundColor: isDark ? "#52525b" : "#d4d4d8" },
+	} as const;
 
 	return (
 		<View className="flex-1 bg-zinc-50 dark:bg-zinc-950" style={{ paddingTop: insets.top }}>
-			<ScrollView
-				showsVerticalScrollIndicator={false}
-				contentContainerStyle={{ paddingBottom: 40 }}
-			>
+			<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 				<View className="px-4 pt-2 pb-5">
 					<Text className="text-zinc-900 dark:text-white text-2xl font-bold">Nastavení</Text>
 				</View>
 
-				{/* Device */}
-				<Section title="Lékovka">
+				<Section title="Sdílení">
 					<SettingRow
-						icon="bluetooth"
-						iconBgDark="#0d2d29"
-						iconBgLight="#fef9c3"
-						iconColor="#ca8a04"
-						label="Lékovka Alpha"
-						value="připojeno"
+						icon="person-add"
+						iconContainerClassName="bg-[#d1fae5] dark:bg-[#0d2d1a]"
+						iconColor="#059669"
+						label="Správa příbuzných"
 						chevron
+						onPress={() => familySheetRef.current?.present()}
 					/>
 					<Divider />
 					<SettingRow
-						icon="battery-half"
-						iconBgDark="#0d2d16"
-						iconBgLight="#dcfce7"
-						iconColor="#16a34a"
-						label="Baterie"
-						value="78 %"
-					/>
-					<Divider />
-					<SettingRow
-						icon="thermometer"
-						iconBgDark="#0d2d29"
-						iconBgLight="#fef9c3"
-						iconColor="#ca8a04"
-						label="Teplota uvnitř"
-						value="21.3 °C"
-					/>
-					<Divider />
-					<SettingRow
-						icon="sync"
-						iconBgDark="#1e1b2e"
-						iconBgLight="#e0e7ff"
-						iconColor="#6366f1"
-						label="Poslední synchronizace"
-						value="dnes 08:42"
+						icon="person"
+						iconContainerClassName="bg-[#dbeafe] dark:bg-[#0d1a2d]"
+						iconColor="#2563eb"
+						label="Notifikace příbuzným"
+						chevron
+						onPress={() => caregiverSheetRef.current?.present()}
 					/>
 				</Section>
 
-				{/* Notifications */}
 				<Section title="Upozornění">
 					<SettingRow
 						icon="notifications"
-						iconBgDark="#27272a"
-						iconBgLight="#f4f4f5"
+						iconContainerClassName="bg-zinc-100 dark:bg-zinc-800"
 						iconColor="#52525b"
 						label="Čas připomenutí"
 						value="z plánu"
@@ -158,43 +433,18 @@ export default function SettingsScreen() {
 					<Divider />
 					<SettingRow
 						icon="time"
-						iconBgDark="#2d1e0d"
-						iconBgLight="#fef3c7"
+						iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
 						iconColor="#d97706"
 						label="Eskalace po"
 						value="15 min"
 						chevron
 					/>
-					<Divider />
-					<SettingRow
-						icon="person"
-						iconBgDark="#0d1a2d"
-						iconBgLight="#dbeafe"
-						iconColor="#2563eb"
-						label="Notifikace pečovateli"
-						toggle={caregiverNotif}
-						onToggle={setCaregiverNotif}
-					/>
 				</Section>
 
-				{/* Sharing */}
-				<Section title="Sdílení">
-					<SettingRow
-						icon="person-add"
-						iconBgDark="#0d2d1a"
-						iconBgLight="#d1fae5"
-						iconColor="#059669"
-						label="Přidat pečovatele"
-						chevron
-					/>
-				</Section>
-
-				{/* Supply */}
 				<Section title="Zásoba">
 					<SettingRow
 						icon="alert-circle"
-						iconBgDark="#2d1e0d"
-						iconBgLight="#fef3c7"
+						iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
 						iconColor="#d97706"
 						label="Upozornit předem"
 						value="7 dní"
@@ -202,12 +452,10 @@ export default function SettingsScreen() {
 					/>
 				</Section>
 
-				{/* Data */}
 				<Section title="Data">
 					<SettingRow
 						icon="cloud-download"
-						iconBgDark="#1e1b2e"
-						iconBgLight="#e0e7ff"
+						iconContainerClassName="bg-[#e0e7ff] dark:bg-[#1e1b2e]"
 						iconColor="#6366f1"
 						label="Exportovat zálohu"
 						chevron
@@ -215,8 +463,7 @@ export default function SettingsScreen() {
 					<Divider />
 					<SettingRow
 						icon="trash"
-						iconBgDark="#2d0d0d"
-						iconBgLight="#fee2e2"
+						iconContainerClassName="bg-[#fee2e2] dark:bg-[#2d0d0d]"
 						iconColor="#ef4444"
 						label="Smazat všechna data"
 						danger
@@ -224,23 +471,22 @@ export default function SettingsScreen() {
 					/>
 				</Section>
 
-				{/* Onboarding shortcut */}
-				<Section title="Základní">
-					<SettingRow
-						icon="refresh-circle"
-						iconBgDark="#0d2d29"
-						iconBgLight="#fef9c3"
-						iconColor="#ca8a04"
-						label="Spustit průvodce znovu"
-						chevron
-						onPress={() => router.push("/(onboarding)")}
-					/>
-				</Section>
-
-				<Text className="text-center text-zinc-500 text-xs mt-2 mb-4">
-					Lékovka v1.0.0 · Prometheus
-				</Text>
+				<Text className="text-center text-zinc-500 text-xs mt-2 mb-4">Lékovka v1.0.0 · Prometheus</Text>
 			</ScrollView>
+
+			{/* Notifikace příbuzným sheet */}
+			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps}>
+				<BottomSheetView className="flex-1 px-6 py-2">
+					<CaregiverNotifSheet enabled={caregiverNotif} onToggle={setCaregiverNotif} />
+				</BottomSheetView>
+			</BottomSheetModal>
+
+			{/* Správa příbuzných sheet */}
+			<BottomSheetModal ref={familySheetRef} {...sheetProps}>
+				<BottomSheetView className="flex-1 h-full px-6 py-2">
+					<FamilySheet />
+				</BottomSheetView>
+			</BottomSheetModal>
 		</View>
 	);
 }

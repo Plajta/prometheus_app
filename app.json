@@ -13,6 +13,12 @@
 			"expo-sqlite",
 			"expo-router",
 			[
+				"expo-camera",
+				{
+					"cameraPermission": "Aplikace potřebuje přístup ke kameře pro skenování QR kódů příbuzných."
+				}
+			],
+			[
 				"expo-build-properties",
 				{
 					"android": {

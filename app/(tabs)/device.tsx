@@ -2,7 +2,7 @@ import { View, Text, Switch } from "react-native";
 import { useState, useRef } from "react";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
-import { useDeviceStore, Slot } from "~/store/useDeviceStore";
+import { useBleDeviceStore, Slot } from "~/store/useBleDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
@@ -38,11 +38,11 @@ const LEGEND = [
 export default function DeviceScreen() {
 	const [ledOn, setLedOn] = useState(false);
 	const bottomSheetRef = useRef<BottomSheetModal>(null);
-	const isConnected = useDeviceStore((state) => state.isConnected);
-	const battery = useDeviceStore((state) => state.battery);
-	const temperature = useDeviceStore((state) => state.temperature);
-	const slotsA = useDeviceStore((state) => state.slotsA);
-	const slotsB = useDeviceStore((state) => state.slotsB);
+	const isConnected = useBleDeviceStore((state) => state.isConnected);
+	const battery = useBleDeviceStore((state) => state.battery);
+	const temperature = useBleDeviceStore((state) => state.temperature);
+	const slotsA = useBleDeviceStore((state) => state.slotsA);
+	const slotsB = useBleDeviceStore((state) => state.slotsB);
 
 	const takenCount = [...slotsA, ...slotsB].filter((s) => s.taken).length;
 

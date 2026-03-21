@@ -9,9 +9,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { setupDatabase } from "~/lib/database";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
-import { useDeviceStore } from "~/store/useDeviceStore";
+import { useBleDeviceStore } from "~/store/useBleDeviceStore";
 import { PermissionsAndroid, Platform } from "react-native";
 import { registerDevice } from "~/lib/notifications";
+import { useDeviceStore } from "~/store/useDeviceStore";
 
 export default function Layout() {
 	useEffect(() => {
@@ -22,7 +23,7 @@ export default function Layout() {
 		}
 
 		registerDevice()
-			.then(({ deviceId }) => console.log(deviceId))
+			.then(({ deviceId }) => useDeviceStore.setState(() => ({ deviceId })))
 			.catch(console.error);
 
 		(async () => {
@@ -51,19 +52,19 @@ export default function Layout() {
 		})();
 
 		if (Platform.OS === "android") {
-			useDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
+			useBleDeviceStore.getState().setIsConnected(BleWrapperModule.isConnected());
 
 			const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
-				useDeviceStore.getState().setIsConnected(event.connected);
+				useBleDeviceStore.getState().setIsConnected(event.connected);
 			});
 
 			const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
-				useDeviceStore.getState().setIsConnected(event.connected);
+				useBleDeviceStore.getState().setIsConnected(event.connected);
 			});
 
 			const buttonSub = BleWrapperModule.addListener("onButtonPress", (event) => {
 				if (event.pressed) {
-					useDeviceStore.getState().toggleSlotB6();
+					useBleDeviceStore.getState().toggleSlotB6();
 				}
 			});
 
@@ -73,7 +74,7 @@ export default function Layout() {
 				buttonSub.remove();
 			};
 		} else {
-			useDeviceStore.getState().setIsConnected(true);
+			useBleDeviceStore.getState().setIsConnected(true);
 		}
 	}, []);
 
