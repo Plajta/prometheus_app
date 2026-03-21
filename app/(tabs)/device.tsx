@@ -1,6 +1,7 @@
 import { View, Text, Dimensions, useColorScheme, TouchableOpacity, PermissionsAndroid, Platform } from "react-native";
 import { useState, useEffect } from "react";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
+import { useDeviceStore } from "~/store/useDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -152,33 +153,9 @@ const filledCount = [...COL_A, ...COL_B].filter((s) => s.status !== "empty").len
 
 export default function DeviceScreen() {
 	const isDark = useColorScheme() === "dark";
-	const [macAddress, setMacAddress] = useState<string | null>(null);
-	const [accelData, setAccelData] = useState<string | null>(null);
 	const [ledOn, setLedOn] = useState(false);
-	const [isConnected, setIsConnected] = useState(() => BleWrapperModule.isConnected());
 
-	useEffect(() => {
-		BleWrapperModule.connectToXiao();
-
-		const accelSub = BleWrapperModule.addListener("onAccelData", (event) => {
-			//console.log(event);
-			setAccelData(event.value);
-		});
-		const connSub = BleWrapperModule.addListener("onDeviceConnected", (event) => {
-			console.log(event);
-			setIsConnected(event.connected);
-		});
-		const disconnSub = BleWrapperModule.addListener("onDeviceDisconnected", (event) => {
-			console.log(event);
-			setIsConnected(event.connected);
-		});
-
-		return () => {
-			accelSub.remove();
-			connSub.remove();
-			disconnSub.remove();
-		};
-	}, []);
+	const isConnected = useDeviceStore((state) => state.isConnected);
 
 	const deviceBg = isDark ? "#141417" : "#f4f4f5";
 	const deviceBorder = isDark ? "#2e2e33" : "#d4d4d8";
@@ -233,153 +210,115 @@ export default function DeviceScreen() {
 				</View>
 			</View>
 
-			<View
-				style={{
-					marginHorizontal: H_MARGIN,
-					backgroundColor: deviceBg,
-					borderColor: deviceBorder,
-					borderWidth: 1.5,
-					borderRadius: 24,
-					padding: INNER_PAD,
-					shadowColor: "#000",
-					shadowOffset: { width: 0, height: 2 },
-					shadowOpacity: isDark ? 0.4 : 0.08,
-					shadowRadius: 12,
-					elevation: 4,
-				}}
-			>
-				<View style={{ flexDirection: "row", gap: COL_GAP, marginBottom: 8 }}>
-					{["A", "B"].map((label) => (
-						<View key={label} style={{ width: CELL_W, alignItems: "center" }}>
-							<Text
-								style={{
-									color: isDark ? "#3f3f46" : "#a1a1aa",
-									fontSize: 9,
-									fontWeight: "700",
-									letterSpacing: 1.5,
-								}}
-							>
-								ŘADA {label}
-							</Text>
-						</View>
-					))}
-				</View>
-
-				{COL_A.map((slotA, i) => (
+			{isConnected ? (
+				<>
 					<View
-						key={i}
 						style={{
-							flexDirection: "row",
-							gap: COL_GAP,
-							marginBottom: i < COL_A.length - 1 ? ROW_GAP : 0,
+							marginHorizontal: H_MARGIN,
+							backgroundColor: deviceBg,
+							borderColor: deviceBorder,
+							borderWidth: 1.5,
+							borderRadius: 24,
+							padding: INNER_PAD,
+							shadowColor: "#000",
+							shadowOffset: { width: 0, height: 2 },
+							shadowOpacity: isDark ? 0.4 : 0.08,
+							shadowRadius: 12,
+							elevation: 4,
 						}}
 					>
-						<SlotCell slot={slotA} isDark={isDark} />
-						<SlotCell slot={COL_B[i]} isDark={isDark} />
+						<View style={{ flexDirection: "row", gap: COL_GAP, marginBottom: 8 }}>
+							{["A", "B"].map((label) => (
+								<View key={label} style={{ width: CELL_W, alignItems: "center" }}>
+									<Text
+										style={{
+											color: isDark ? "#3f3f46" : "#a1a1aa",
+											fontSize: 9,
+											fontWeight: "700",
+											letterSpacing: 1.5,
+										}}
+									>
+										ŘADA {label}
+									</Text>
+								</View>
+							))}
+						</View>
+
+						{COL_A.map((slotA, i) => (
+							<View
+								key={i}
+								style={{
+									flexDirection: "row",
+									gap: COL_GAP,
+									marginBottom: i < COL_A.length - 1 ? ROW_GAP : 0,
+								}}
+							>
+								<SlotCell slot={slotA} isDark={isDark} />
+								<SlotCell slot={COL_B[i]} isDark={isDark} />
+							</View>
+						))}
 					</View>
-				))}
-			</View>
 
-			<View style={{ flexDirection: "row", justifyContent: "center", gap: 20, marginTop: 14 }}>
-				{LEGEND.map((item) => (
-					<View key={item.label} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-						<View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: item.color }} />
-						<Text style={{ color: "#71717a", fontSize: 11 }}>{item.label}</Text>
+					<View style={{ flexDirection: "row", justifyContent: "center", gap: 20, marginTop: 14 }}>
+						{LEGEND.map((item) => (
+							<View key={item.label} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+								<View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: item.color }} />
+								<Text style={{ color: "#71717a", fontSize: 11 }}>{item.label}</Text>
+							</View>
+						))}
 					</View>
-				))}
-			</View>
 
-			<View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 16 }}>
-				<ActionButton
-					icon="bluetooth"
-					iconColor="#eab308"
-					label="Scan"
-					onPress={async () => {
-						try {
-							if (Platform.OS === "android") {
-								const granted = await PermissionsAndroid.requestMultiple([
-									PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-									PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-									PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-								]);
-
-								if (
-									granted["android.permission.BLUETOOTH_SCAN"] !== "granted" ||
-									granted["android.permission.BLUETOOTH_CONNECT"] !== "granted" ||
-									granted["android.permission.ACCESS_FINE_LOCATION"] !== "granted"
-								) {
-									console.error("Bluetooth permissions denied");
-									return;
+					<View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 16 }}>
+						<ActionButton
+							icon="bulb"
+							iconColor={ledOn ? "#eab308" : "#71717a"}
+							label="LED"
+							onPress={async () => {
+								try {
+									await BleWrapperModule.setLed(!ledOn);
+									setLedOn(!ledOn);
+								} catch (e) {
+									console.error(e);
 								}
-							}
-
-							const addr = await BleWrapperModule.scanForXiao();
-							setMacAddress(addr);
-							await BleWrapperModule.connect(addr);
-						} catch (e) {
-							console.error(e);
-						}
+							}}
+							isDark={isDark}
+						/>
+					</View>
+				</>
+			) : (
+				<View
+					style={{
+						flex: 1,
+						justifyContent: "center",
+						alignItems: "center",
+						paddingHorizontal: 40,
+						paddingBottom: 60,
+						gap: 16,
 					}}
-					isDark={isDark}
-				/>
+				>
+					<View
+						style={{
+							width: 96,
+							height: 96,
+							borderRadius: 48,
+							backgroundColor: "#eab308",
+							justifyContent: "center",
+							alignItems: "center",
+							marginBottom: 8,
+						}}
+					>
+						<Ionicons name="bluetooth" size={40} color="#713f12" />
+					</View>
 
-				<ActionButton
-					icon="stop-circle"
-					iconColor="#f43f5e"
-					label="Stop"
-					onPress={async () => {
-						try {
-							await BleWrapperModule.stopScan();
-							if (BleWrapperModule.isConnected()) {
-								await BleWrapperModule.disconnect();
-							}
-						} catch (e) {
-							console.error(e);
-						}
-					}}
-					isDark={isDark}
-				/>
+					<Text style={{ color: textPrimary, fontSize: 22, fontWeight: "600", textAlign: "center" }}>
+						Lékovka mimo dosah
+					</Text>
 
-				<ActionButton
-					icon="speedometer"
-					iconColor="#3b82f6"
-					label="Accel"
-					onPress={async () => {
-						try {
-							const data = await BleWrapperModule.readAccelerometer();
-							setAccelData(data);
-							console.log(data);
-						} catch (e) {
-							console.error(e);
-						}
-					}}
-					isDark={isDark}
-				/>
-
-				<ActionButton
-					icon="bulb"
-					iconColor={ledOn ? "#eab308" : "#71717a"}
-					label="LED"
-					onPress={async () => {
-						try {
-							await BleWrapperModule.setLed(!ledOn);
-							setLedOn(!ledOn);
-						} catch (e) {
-							console.error(e);
-						}
-					}}
-					isDark={isDark}
-				/>
-			</View>
-
-			<View style={{ paddingHorizontal: 16, marginTop: 16, marginBottom: 20 }}>
-				<Text style={{ color: textPrimary, fontSize: 13, marginBottom: 4 }}>
-					<Text style={{ fontWeight: "700" }}>MAC:</Text> {macAddress || "—"}
-				</Text>
-				<Text style={{ color: textPrimary, fontSize: 13 }}>
-					<Text style={{ fontWeight: "700" }}>Accel:</Text> {accelData || "—"}
-				</Text>
-			</View>
+					<Text style={{ color: "#71717a", fontSize: 15, textAlign: "center", lineHeight: 22 }}>
+						Pro konfiguraci lékovky se k ní prosím přibližte.
+					</Text>
+				</View>
+			)}
 		</SafeAreaView>
 	);
 }
