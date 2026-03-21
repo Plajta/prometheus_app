@@ -54,4 +54,3 @@ export const useDeviceStore = create<DeviceState>((set) => ({
 			return { slotsB: newB };
 		}),
 }));
-ß;
