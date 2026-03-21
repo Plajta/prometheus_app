@@ -13,6 +13,7 @@ import { useBleDeviceStore } from "~/store/useBleDeviceStore";
 import { PermissionsAndroid, Platform } from "react-native";
 import { registerDevice } from "~/lib/notifications";
 import { useDeviceStore } from "~/store/useDeviceStore";
+import { syncSchedule } from "~/lib/scheduleSync";
 
 export default function Layout() {
 	useEffect(() => {
@@ -81,7 +82,6 @@ export default function Layout() {
 						if (settings.cup_state !== null && settings.cup_state !== undefined) {
 							await BleWrapperModule.writeCupState(settings.cup_state);
 						}
-
 						if (settings.alerts_enabled !== null) {
 							await BleWrapperModule.setAlertsEnabled(settings.alerts_enabled === 1);
 						}
@@ -94,8 +94,15 @@ export default function Layout() {
 						if (settings.alarm_interval !== null) {
 							await BleWrapperModule.setAlarmInterval(settings.alarm_interval);
 						}
-
 						await BleWrapperModule.syncTime();
+					}
+
+					const mH = settings?.alarm_morning_h ?? null;
+					const mM = settings?.alarm_morning_m ?? null;
+					const eH = settings?.alarm_evening_h ?? null;
+					const eM = settings?.alarm_evening_m ?? null;
+					if (mH !== null && mM !== null && eH !== null && eM !== null) {
+						syncSchedule(mH, mM, eH, eM).catch(console.error);
 					}
 				} catch (e) {
 					console.error("Failed to read initial state on connect:", e);

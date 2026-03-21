@@ -22,6 +22,7 @@ import { useDeviceStore } from "~/store/useDeviceStore";
 import { useBleDeviceStore } from "~/store/useBleDeviceStore";
 import { getWatching, addFamilyRelation, deleteFamilyRelation, type FamilyRelation } from "~/lib/notifications";
 import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
+import { syncSchedule } from "~/lib/scheduleSync";
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
@@ -270,7 +271,7 @@ function AlarmsSheet({
 				eM = eveningDate.getMinutes();
 			await BleWrapperModule.setAlarmEvening(eH, eM);
 			updateDeviceSettings({ alarm_evening_h: eH, alarm_evening_m: eM });
-
+			syncSchedule(mH, mM, eH, eM).catch(console.error);
 			onSaved?.(dateToTimeStr(morningDate), dateToTimeStr(eveningDate));
 			onClose();
 		} catch (e) {

@@ -13,10 +13,10 @@ CREATE TABLE IF NOT EXISTS device (
     temperature_c REAL,
     cup_state INTEGER DEFAULT 0,
     alerts_enabled INTEGER DEFAULT 1,
-    alarm_morning_h INTEGER,
-    alarm_morning_m INTEGER,
-    alarm_evening_h INTEGER,
-    alarm_evening_m INTEGER,
+    alarm_morning_h INTEGER DEFAULT 8,
+    alarm_morning_m INTEGER DEFAULT 0,
+    alarm_evening_h INTEGER DEFAULT 20,
+    alarm_evening_m INTEGER DEFAULT 0,
     alarm_interval INTEGER,
     last_seen INTEGER
 );
@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS temperature_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_temp_log_device ON temperature_log(device_id, measured_at);
+
+CREATE TABLE IF NOT EXISTS schedule (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    schedule_id TEXT NOT NULL,
+    alarm_morning_h INTEGER NOT NULL,
+    alarm_morning_m INTEGER NOT NULL,
+    alarm_evening_h INTEGER NOT NULL,
+    alarm_evening_m INTEGER NOT NULL
+);
 `;
 
 export const db = SQLite.openDatabaseSync("pillbox.db");
@@ -51,12 +60,23 @@ export function setupDatabase(forceWipe: boolean = false) {
 				`SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='device'`,
 			)!;
 			if (count > 0) {
-				console.log("[DB] Database already initialized. Skipping setup.");
+				console.log("[DB] Database already initialized. Running migrations.");
+				db.execSync(`CREATE TABLE IF NOT EXISTS schedule (
+					id INTEGER PRIMARY KEY DEFAULT 1,
+					schedule_id TEXT NOT NULL,
+					alarm_morning_h INTEGER NOT NULL,
+					alarm_morning_m INTEGER NOT NULL,
+					alarm_evening_h INTEGER NOT NULL,
+					alarm_evening_m INTEGER NOT NULL
+				)`);
 				return;
 			}
 		}
 
 		db.execSync(SCHEMA);
+		db.execSync(
+			`INSERT OR IGNORE INTO device (id, ble_id, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m) VALUES (1, 'default', 8, 0, 20, 0)`,
+		);
 		const tables = db.getAllSync<{ name: string }>(
 			`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`,
 		);
@@ -171,5 +191,48 @@ export function updateDeviceSettings(
 		db.runSync(`UPDATE device SET ${fields.join(", ")} WHERE id=?`, values);
 	} catch (e) {
 		console.error("[DB] updateDeviceSettings error:", e);
+	}
+}
+
+export function getStoredSchedule() {
+	try {
+		return db.getFirstSync<{
+			schedule_id: string;
+			alarm_morning_h: number;
+			alarm_morning_m: number;
+			alarm_evening_h: number;
+			alarm_evening_m: number;
+		}>(
+			`SELECT schedule_id, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m FROM schedule WHERE id=1`,
+		);
+	} catch (e) {
+		console.error("[DB] getStoredSchedule error:", e);
+		return null;
+	}
+}
+
+export function saveSchedule(scheduleId: string, mH: number, mM: number, eH: number, eM: number) {
+	try {
+		db.runSync(
+			`INSERT INTO schedule (id, schedule_id, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m)
+             VALUES (1, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+             schedule_id=excluded.schedule_id,
+             alarm_morning_h=excluded.alarm_morning_h,
+             alarm_morning_m=excluded.alarm_morning_m,
+             alarm_evening_h=excluded.alarm_evening_h,
+             alarm_evening_m=excluded.alarm_evening_m`,
+			[scheduleId, mH, mM, eH, eM],
+		);
+	} catch (e) {
+		console.error("[DB] saveSchedule error:", e);
+	}
+}
+
+export function clearSchedule() {
+	try {
+		db.runSync(`DELETE FROM schedule WHERE id=1`);
+	} catch (e) {
+		console.error("[DB] clearSchedule error:", e);
 	}
 }

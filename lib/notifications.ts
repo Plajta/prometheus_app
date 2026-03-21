@@ -106,6 +106,22 @@ export async function createSchedule(
 	});
 }
 
+export async function updateSchedule(
+	scheduleId: string,
+	scheduledTime: string,
+	graceMinutes?: number,
+	label?: string,
+): Promise<void> {
+	await request<unknown>(`/schedules/${scheduleId}`, {
+		method: "PATCH",
+		body: JSON.stringify({
+			scheduled_time: scheduledTime,
+			...(graceMinutes !== undefined && { grace_minutes: graceMinutes }),
+			...(label !== undefined && { label }),
+		}),
+	});
+}
+
 export async function confirmSchedule(scheduleId: string): Promise<{ ok: boolean }> {
 	return request(`/schedules/${scheduleId}/confirm`, { method: "POST" });
 }
