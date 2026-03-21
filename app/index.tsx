@@ -10,20 +10,94 @@ import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
 import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
 import { getDeviceSettings, updateDeviceSettings } from "~/lib/database";
 
-function SlotCell({ slot }: { slot: Slot }) {
-	const bgClass = slot.taken
-		? "bg-green-100 border-green-500 dark:bg-green-900/40 dark:border-green-500"
-		: "bg-zinc-100 border-zinc-300 dark:bg-zinc-800/40 dark:border-zinc-700";
-	const textClass = slot.taken ? "text-green-800 dark:text-green-200" : "text-zinc-500 dark:text-zinc-400";
-	const subTextClass = slot.taken ? "text-green-600 dark:text-green-500" : "text-zinc-400 dark:text-zinc-500";
-	const dotClass = slot.taken ? "bg-green-500" : "bg-zinc-400 dark:bg-zinc-500";
+// ─── Slot status ──────────────────────────────────────────────────────────────
+
+type SlotStatus = "past" | "present" | "future";
+
+/** Vrátí pondělí tohoto týdne (půlnoc). */
+function getThisMonday(): Date {
+	const d = new Date();
+	const day = d.getDay(); // 0=Ne
+	d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+	d.setHours(0, 0, 0, 0);
+	return d;
+}
+
+/**
+ * Pro každý slot (0–6 = Po–Ne) spočítá status vůči aktuálnímu času.
+ * col: "A" = ráno, "B" = večer.
+ */
+function computeStatuses(
+	morningH: number,
+	morningM: number,
+	eveningH: number,
+	eveningM: number,
+): { statusA: SlotStatus[]; statusB: SlotStatus[] } {
+	const now = new Date();
+	const monday = getThisMonday();
+
+	// Seřazená sekvence 14 eventů (pondělí ráno → neděle večer)
+	const events: { col: "A" | "B"; dayIdx: number; time: Date }[] = [];
+	for (let d = 0; d < 7; d++) {
+		const base = new Date(monday);
+		base.setDate(monday.getDate() + d);
+
+		const morning = new Date(base);
+		morning.setHours(morningH, morningM, 0, 0);
+		events.push({ col: "A", dayIdx: d, time: morning });
+
+		const evening = new Date(base);
+		evening.setHours(eveningH, eveningM, 0, 0);
+		events.push({ col: "B", dayIdx: d, time: evening });
+	}
+
+	// Present = nejbližší budoucí event; pokud jsou všechny minulé → poslední
+	const upcoming = events.filter((e) => e.time >= now);
+	const presentEvent = upcoming.length > 0 ? upcoming[0] : events[events.length - 1];
+
+	const classify = (col: "A" | "B", dayIdx: number): SlotStatus => {
+		const ev = events.find((e) => e.col === col && e.dayIdx === dayIdx)!;
+		if (ev === presentEvent) return "present";
+		return ev.time < now ? "past" : "future";
+	};
+
+	return {
+		statusA: Array.from({ length: 7 }, (_, i) => classify("A", i)),
+		statusB: Array.from({ length: 7 }, (_, i) => classify("B", i)),
+	};
+}
+
+// ─── SlotCell ─────────────────────────────────────────────────────────────────
+
+type StyleKey = SlotStatus | "overdue";
+
+const STATUS_STYLE: Record<StyleKey, { bg: string; border: string; text: string; sub: string; dot: string }> = {
+	past:    { bg: "#dcfce7", border: "#22c55e", text: "#166534", sub: "#16a34a", dot: "#22c55e" },
+	present: { bg: "#fef9c3", border: "#eab308", text: "#713f12", sub: "#ca8a04", dot: "#eab308" },
+	future:  { bg: "#e0f2fe", border: "#38bdf8", text: "#075985", sub: "#0284c7", dot: "#38bdf8" },
+	overdue: { bg: "#fee2e2", border: "#ef4444", text: "#7f1d1d", sub: "#dc2626", dot: "#ef4444" },
+};
+
+const STATUS_STYLE_DARK: Record<StyleKey, { bg: string; border: string; text: string; sub: string; dot: string }> = {
+	past:    { bg: "#052e16", border: "#22c55e", text: "#bbf7d0", sub: "#4ade80", dot: "#22c55e" },
+	present: { bg: "#1a1200", border: "#eab308", text: "#fef08a", sub: "#facc15", dot: "#eab308" },
+	future:  { bg: "#082f49", border: "#38bdf8", text: "#bae6fd", sub: "#7dd3fc", dot: "#38bdf8" },
+	overdue: { bg: "#2d0a0a", border: "#ef4444", text: "#fecaca", sub: "#f87171", dot: "#ef4444" },
+};
+
+function SlotCell({ slot, status }: { slot: Slot; status: SlotStatus }) {
+	const isDark = require("react-native").useColorScheme() === "dark";
+	const key: StyleKey = status === "past" && !slot.taken ? "overdue" : status;
+	const s = (isDark ? STATUS_STYLE_DARK : STATUS_STYLE)[key];
 
 	return (
-		<View className={`flex-1 flex-row items-center gap-2 rounded-xl px-2.5 py-1 opacity-50 ${bgClass} border`}>
-			<View className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
-			<View className="flex-1 gap-0.5">
-				<Text className={`text-[9px] font-bold tracking-widest ${subTextClass}`}>{slot.id}</Text>
-				<Text className={`text-[13px] font-bold leading-[15px] ${textClass}`} numberOfLines={1}>
+		<View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8,
+			borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
+			backgroundColor: s.bg, borderWidth: 1.5, borderColor: s.border }}>
+			<View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: s.dot, flexShrink: 0 }} />
+			<View style={{ flex: 1, gap: 2 }}>
+				<Text style={{ fontSize: 9, fontWeight: "700", letterSpacing: 0.5, color: s.sub }}>{slot.id}</Text>
+				<Text style={{ fontSize: 13, fontWeight: "700", color: s.text, lineHeight: 15 }} numberOfLines={1}>
 					{slot.dayName}
 				</Text>
 			</View>
@@ -31,13 +105,17 @@ function SlotCell({ slot }: { slot: Slot }) {
 	);
 }
 
-const LEGEND = [
-	{ color: "#22c55e", label: "Vybráno" },
-	{ color: "#a1a1aa", label: "Nevybráno" },
-] as const;
+const LEGEND: { key: StyleKey; label: string }[] = [
+	{ key: "past",    label: "Vyzvednuto"   },
+	{ key: "present", label: "Nyní"         },
+	{ key: "future",  label: "Nadcházející" },
+	{ key: "overdue", label: "Zmeškáno"     },
+];
 
 export default function DeviceScreen() {
 	const [alertsEnabled, setAlertsEnabled] = useState(true);
+	const [slotStatuses, setSlotStatuses] = useState(() => computeStatuses(8, 0, 20, 0));
+	const alarmTimes = useRef({ mh: 8, mm: 0, eh: 20, em: 0 });
 	const bottomSheetRef = useRef<BottomSheetModal>(null);
 	const router = useRouter();
 	const isConnected = useBleDeviceStore((state) => state.isConnected);
@@ -49,9 +127,24 @@ export default function DeviceScreen() {
 
 	useEffect(() => {
 		const s = getDeviceSettings();
-		if (s && s.alerts_enabled !== null && s.alerts_enabled !== undefined) {
-			setAlertsEnabled(s.alerts_enabled === 1);
+		if (s) {
+			if (s.alerts_enabled !== null && s.alerts_enabled !== undefined) {
+				setAlertsEnabled(s.alerts_enabled === 1);
+			}
+			alarmTimes.current = {
+				mh: s.alarm_morning_h ?? 8,
+				mm: s.alarm_morning_m ?? 0,
+				eh: s.alarm_evening_h ?? 20,
+				em: s.alarm_evening_m ?? 0,
+			};
 		}
+		const recalc = () => {
+			const { mh, mm, eh, em } = alarmTimes.current;
+			setSlotStatuses(computeStatuses(mh, mm, eh, em));
+		};
+		recalc();
+		const interval = setInterval(recalc, 60_000);
+		return () => clearInterval(interval);
 	}, []);
 
 	const takenCount = [...slotsA, ...slotsB].filter((s) => s.taken).length;
@@ -106,8 +199,8 @@ export default function DeviceScreen() {
 
 						{slotsA.map((slotA, i) => (
 							<View key={i} className="flex-1 flex-row gap-1.5">
-								<SlotCell slot={slotA} />
-								<SlotCell slot={slotsB[i]} />
+								<SlotCell slot={slotA} status={slotStatuses.statusA[i]} />
+								<SlotCell slot={slotsB[i]} status={slotStatuses.statusB[i]} />
 							</View>
 						))}
 					</View>
@@ -115,10 +208,7 @@ export default function DeviceScreen() {
 					<View className="mt-3.5 flex-row justify-center gap-5">
 						{LEGEND.map((item) => (
 							<View key={item.label} className="flex-row items-center gap-1.5">
-								<View
-									style={{ backgroundColor: item.color }}
-									className="h-2 w-2 rounded-sm opacity-50"
-								/>
+								<View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: STATUS_STYLE[item.key].dot }} />
 								<Text className="text-zinc-500 text-[11px]">{item.label}</Text>
 							</View>
 						))}
