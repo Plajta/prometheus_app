@@ -21,9 +21,10 @@ class NrfBleManager(private val context: Context) {
     companion object {
         private const val TAG = "NrfBleManager"
 
-        val SERVICE_UUID: UUID    = uuidFrom16Bit(0x1234)
-        val ACCEL_CHAR_UUID: UUID = uuidFrom16Bit(0x1235)
-        val LED_CHAR_UUID: UUID   = uuidFrom16Bit(0x1236)
+        val SERVICE_UUID: UUID     = uuidFrom16Bit(0x1234)
+        val ACCEL_CHAR_UUID: UUID  = uuidFrom16Bit(0x1235)
+        val LED_CHAR_UUID: UUID    = uuidFrom16Bit(0x1236)
+        val BUTTON_CHAR_UUID: UUID = uuidFrom16Bit(0x1237)
 
         // Standard BLE Client Characteristic Configuration Descriptor
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
@@ -50,6 +51,7 @@ class NrfBleManager(private val context: Context) {
 
     // Event listeners set by the Module
     var onAccelData: ((String) -> Unit)? = null
+    var onButtonPress: (() -> Unit)? = null
     var onDeviceConnected: (() -> Unit)? = null
     var onDeviceDisconnected: (() -> Unit)? = null
 
@@ -130,11 +132,19 @@ class NrfBleManager(private val context: Context) {
             // Subscribe to accelerometer notifications
             val service = gatt.getService(SERVICE_UUID)
             val accelChar = service?.getCharacteristic(ACCEL_CHAR_UUID)
+            val buttonChar = service?.getCharacteristic(BUTTON_CHAR_UUID)
 
             if (accelChar != null) {
                 enqueueCommand(BleCommand.EnableNotify(accelChar))
             } else {
                 Log.w(TAG, "Accelerometer characteristic not found, continuing without notifications")
+            }
+
+            // Subscribe to button notifications
+            if (buttonChar != null) {
+                enqueueCommand(BleCommand.EnableNotify(buttonChar))
+            } else {
+                Log.w(TAG, "Button characteristic not found, continuing without button notifications")
             }
 
             // Signal that connection is alive
@@ -148,10 +158,15 @@ class NrfBleManager(private val context: Context) {
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-            // This fires when the XIAO sends a Notify with new accel data
-            if (characteristic.uuid == ACCEL_CHAR_UUID) {
-                val value = characteristic.value?.let { String(it) } ?: ""
-                onAccelData?.invoke(value)
+            when (characteristic.uuid) {
+                ACCEL_CHAR_UUID -> {
+                    val value = characteristic.value?.let { String(it) } ?: ""
+                    onAccelData?.invoke(value)
+                }
+                BUTTON_CHAR_UUID -> {
+                    Log.i(TAG, "Button press notification received!")
+                    onButtonPress?.invoke()
+                }
             }
         }
 

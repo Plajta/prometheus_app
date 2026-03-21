@@ -11,6 +11,9 @@ class BleWrapperModule : Module() {
             manager.onAccelData = { value ->
                 sendEvent("onAccelData", mapOf("value" to value))
             }
+            manager.onButtonPress = {
+                sendEvent("onButtonPress", mapOf("pressed" to true))
+            }
             manager.onDeviceConnected = {
                 sendEvent("onDeviceConnected", mapOf("connected" to true))
             }
@@ -23,7 +26,7 @@ class BleWrapperModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("BleWrapper")
 
-        Events("onAccelData", "onDeviceConnected", "onDeviceDisconnected")
+        Events("onAccelData", "onButtonPress", "onDeviceConnected", "onDeviceDisconnected")
 
         // Auto-scan + auto-connect in one call
         AsyncFunction("connectToXiao") { promise: Promise ->
