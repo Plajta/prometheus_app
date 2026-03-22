@@ -196,6 +196,7 @@ function SlotCell({
     const handleLongPress = () => {
         if (!canInteract) return;
         suppressPress.current = true;
+        setTimeout(() => { suppressPress.current = false; }, 50);
         LayoutAnimation.configureNext(SPLIT_ANIM);
         setSplit(true);
     };
@@ -221,13 +222,7 @@ function SlotCell({
             {split ? (
                 <>
                     <Pressable
-                        onPress={() => {
-                            if (suppressPress.current) {
-                                suppressPress.current = false;
-                                return;
-                            }
-                            handleChoose(true);
-                        }}
+                        onPress={() => handleChoose(true)}
                         className="flex-1 items-center justify-center py-2 rounded-xl border-[1.5px]"
                         style={{ backgroundColor: isDark ? "#052e16" : "#dcfce7", borderColor: "#22c55e" }}
                     >
@@ -237,13 +232,7 @@ function SlotCell({
                         </Text>
                     </Pressable>
                     <Pressable
-                        onPress={() => {
-                            if (suppressPress.current) {
-                                suppressPress.current = false;
-                                return;
-                            }
-                            handleChoose(false);
-                        }}
+                        onPress={() => handleChoose(false)}
                         className="flex-1 items-center justify-center py-2 rounded-xl border-[1.5px]"
                         style={{ backgroundColor: isDark ? "#2d0a0a" : "#fee2e2", borderColor: "#ef4444" }}
                     >
