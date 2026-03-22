@@ -37,6 +37,15 @@ function getThisMonday(): Date {
     return d;
 }
 
+// DEMO: středa tohoto týdne, 7:50 (10 min před ranním budíkem 8:00)
+function getNow(): Date {
+    const monday = getThisMonday();
+    const wed = new Date(monday);
+    wed.setDate(monday.getDate() + 2);
+    wed.setHours(7, 50, 0, 0);
+    return wed;
+}
+
 function computeStatuses(
     morningH: number,
     morningM: number,
@@ -44,7 +53,7 @@ function computeStatuses(
     eveningM: number,
     skipPresentTime?: Date | null,
 ): { statusA: SlotStatus[]; statusB: SlotStatus[]; presentEventTime: Date } {
-    const now = new Date();
+    const now = getNow();
     const monday = getThisMonday();
 
     const events: { col: "A" | "B"; dayIdx: number; time: Date }[] = [];
@@ -142,7 +151,7 @@ function SlotCell({
         }
 
         const update = () => {
-            const diffMs = presentEventTime.getTime() - Date.now();
+            const diffMs = presentEventTime.getTime() - getNow().getTime();
             setIsInWindow(diffMs <= 10 * 60 * 1000);
 
             if (diffMs <= 0) {
