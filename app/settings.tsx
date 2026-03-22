@@ -839,17 +839,6 @@ export default function SettingsScreen() {
 								chevron
 							/>
 						</Section>
-
-						<Section title="Zásoba">
-							<SettingRow
-								icon="alert-circle"
-								iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
-								iconColor="#d97706"
-								label="Upozornit předem"
-								value="7 dní"
-								chevron
-							/>
-						</Section>
 					</>
 				)}
 
