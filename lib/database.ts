@@ -131,6 +131,8 @@ export function saveDeviceState(state: DeviceState) {
 
 export function getDeviceSettings() {
 	try {
+		console.log("deicejsadjoais");
+
 		return db.getFirstSync<{
 			alerts_enabled: number | null;
 			alarm_morning_h: number | null;
@@ -144,7 +146,7 @@ export function getDeviceSettings() {
 			`SELECT alerts_enabled, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m, alarm_interval, cup_state, last_seen FROM device WHERE id=1`,
 		);
 	} catch (e) {
-		console.error("[DB] getDeviceSettings error:", e);
+		console.log("[DB] getDeviceSettings error:", e);
 		return null;
 	}
 }
@@ -220,7 +222,14 @@ export function getStoredSchedule() {
 	}
 }
 
-export function saveSchedule(scheduleId: string, scheduledTime: string, mH: number, mM: number, eH: number, eM: number) {
+export function saveSchedule(
+	scheduleId: string,
+	scheduledTime: string,
+	mH: number,
+	mM: number,
+	eH: number,
+	eM: number,
+) {
 	try {
 		db.runSync(
 			`INSERT INTO schedule (id, schedule_id, scheduled_time, alarm_morning_h, alarm_morning_m, alarm_evening_h, alarm_evening_m)

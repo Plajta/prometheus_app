@@ -27,58 +27,54 @@ function getNextAlarmTime(mH: number, mM: number, eH: number, eM: number): Date 
 
 let syncing = false;
 
-export async function syncSchedule(
-	mH: number,
-	mM: number,
-	eH: number,
-	eM: number,
-	graceMinutesOverride?: number,
-) {
+export async function syncSchedule(mH: number, mM: number, eH: number, eM: number, graceMinutesOverride?: number) {
 	if (syncing) return;
 	syncing = true;
 	try {
-	const deviceId = useDeviceStore.getState().deviceId ?? (await getDeviceId().catch(() => null));
-	if (!deviceId) { syncing = false; return; }
+		const deviceId = useDeviceStore.getState().deviceId ?? (await getDeviceId().catch(() => null));
+		if (!deviceId) {
+			syncing = false;
+			return;
+		}
 
-	const presentTime = getNextAlarmTime(mH, mM, eH, eM);
-	const isoTime = new Date(presentTime.getTime() + 60 * 60 * 1000).toISOString().replace("Z", "+01:00");
+		const presentTime = getNextAlarmTime(mH, mM, eH, eM);
+		const isoTime = new Date(presentTime.getTime() + 60 * 60 * 1000).toISOString().replace("Z", "+01:00");
 
-	const settings = getDeviceSettings();
-	const graceMinutes =
-		graceMinutesOverride ??
-		(settings?.alarm_interval ? Math.floor(settings.alarm_interval / 60) : null);
+		const settings = getDeviceSettings();
+		const graceMinutes =
+			graceMinutesOverride ?? (settings?.alarm_interval ? Math.floor(settings.alarm_interval / 60) : null);
 
-	if (graceMinutes === null) return;
+		if (graceMinutes === null) return;
 
-	const stored = getStoredSchedule();
+		const stored = getStoredSchedule();
 
-	if (stored != null && stored.scheduled_time === isoTime && graceMinutesOverride === undefined) {
-		// Already have a valid schedule for this exact slot — skip
-		return;
-	}
+		if (stored != null && stored.scheduled_time === isoTime && graceMinutesOverride === undefined) {
+			// Already have a valid schedule for this exact slot — skip
+			return;
+		}
 
-	if (stored != null) {
-		// If stored schedule is in the past, it has expired — always CREATE new
-		const storedTime = new Date(stored.scheduled_time);
-		const isExpired = storedTime < new Date();
+		if (stored != null) {
+			// If stored schedule is in the past, it has expired — always CREATE new
+			const storedTime = new Date(stored.scheduled_time);
+			const isExpired = storedTime < new Date();
 
-		if (isExpired) {
-			const { id } = await createSchedule(deviceId, isoTime, graceMinutes);
-			saveSchedule(id, isoTime, mH, mM, eH, eM);
-		} else {
-			// Future schedule exists but for a different slot/grace — PATCH, fallback to CREATE
-			try {
-				await updateSchedule(stored.schedule_id, isoTime, graceMinutes);
-				saveSchedule(stored.schedule_id, isoTime, mH, mM, eH, eM);
-			} catch {
+			if (isExpired) {
 				const { id } = await createSchedule(deviceId, isoTime, graceMinutes);
 				saveSchedule(id, isoTime, mH, mM, eH, eM);
+			} else {
+				// Future schedule exists but for a different slot/grace — PATCH, fallback to CREATE
+				try {
+					await updateSchedule(stored.schedule_id, isoTime, graceMinutes);
+					saveSchedule(stored.schedule_id, isoTime, mH, mM, eH, eM);
+				} catch {
+					const { id } = await createSchedule(deviceId, isoTime, graceMinutes);
+					saveSchedule(id, isoTime, mH, mM, eH, eM);
+				}
 			}
+		} else {
+			const { id } = await createSchedule(deviceId, isoTime, graceMinutes);
+			saveSchedule(id, isoTime, mH, mM, eH, eM);
 		}
-	} else {
-		const { id } = await createSchedule(deviceId, isoTime, graceMinutes);
-		saveSchedule(id, isoTime, mH, mM, eH, eM);
-	}
 	} finally {
 		syncing = false;
 	}

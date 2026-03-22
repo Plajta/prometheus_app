@@ -104,9 +104,9 @@ class NrfBleManager(private val context: Context) {
 
             if (newState == BluetoothGatt.STATE_CONNECTED) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
-                    Log.i(TAG, "Connected, discovering services...")
+                    Log.i(TAG, "Connected, requesting MTU...")
                     gatt.requestMtu(256)
-                    gatt.discoverServices()
+                    // discoverServices() is called in onMtuChanged
                 } else {
                     Log.e(TAG, "Connect failed with status $status")
                     onConnectResult?.invoke(false)
@@ -140,6 +140,12 @@ class NrfBleManager(private val context: Context) {
                     }, RECONNECT_DELAY_MS)
                 }
             }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            Log.i(TAG, "MTU changed to $mtu (status=$status), discovering services...")
+            gatt.discoverServices()
         }
 
         @SuppressLint("MissingPermission")
