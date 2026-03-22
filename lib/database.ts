@@ -115,14 +115,12 @@ export function saveDeviceState(state: DeviceState) {
 		});
 
 		db.runSync(
-			`INSERT INTO device (id, ble_id, battery, temperature_c, cup_state, last_seen)
-             VALUES (1, 'default', ?, ?, ?, ?)
+			`INSERT INTO device (id, ble_id, cup_state, last_seen)
+             VALUES (1, 'default', ?, ?)
              ON CONFLICT(id) DO UPDATE SET
-             battery=excluded.battery,
-             temperature_c=excluded.temperature_c,
              cup_state=excluded.cup_state,
              last_seen=excluded.last_seen`,
-			[state.battery ?? null, state.temperature ?? null, cupState, Math.floor(Date.now() / 1000)],
+			[cupState, Math.floor(Date.now() / 1000)],
 		);
 	} catch (e) {
 		console.error("[DB] saveDeviceState error:", e);
