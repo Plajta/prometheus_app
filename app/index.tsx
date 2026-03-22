@@ -1,15 +1,4 @@
-import {
-	View,
-	Text,
-	Switch,
-	Alert,
-	Pressable,
-	LayoutAnimation,
-	Platform,
-	UIManager,
-	useColorScheme,
-	Animated,
-} from "react-native";
+import { View, Text, Pressable, LayoutAnimation, useColorScheme, Animated } from "react-native";
 import { useState, useRef, useEffect, useCallback } from "react";
 
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
@@ -19,13 +8,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
+import { FindMyPill } from "~/components/FindMyPill";
 
 import { getDeviceSettings, updateDeviceSettings, getStoredSchedule } from "~/lib/database";
 import { confirmSchedule } from "~/lib/notifications";
-
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-	UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type SlotStatus = "past" | "present" | "future";
 
@@ -387,14 +373,7 @@ export default function DeviceScreen() {
 
 					<View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
 						<BluetoothStatusPill isConnected={isConnected} />
-
-						<Pressable
-							onPress={() => router.push("/settings")}
-							className="active:opacity-60 w-10 h-10 rounded-xl items-center justify-center border bg-yellow-100 border-yellow-500"
-						>
-							<Ionicons name="navigate-circle-outline" size={18} color="#eab308" />
-						</Pressable>
-
+						<FindMyPill />
 						<Pressable
 							onPress={() => router.push("/settings")}
 							className="active:opacity-60 w-10 h-10 rounded-xl items-center justify-center border bg-yellow-100 border-yellow-500"
