@@ -11,7 +11,7 @@ import {
     Animated,
 } from "react-native";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { BottomSheetModal } from "@gorhom/bottom-sheet";
+
 import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 import { useBleDeviceStore, Slot } from "~/store/useBleDeviceStore";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,7 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { BluetoothStatusPill } from "~/components/BluetoothStatusPill";
-import { SettingsBottomSheet } from "~/components/SettingsBottomSheet";
+
 import { getDeviceSettings, updateDeviceSettings, getStoredSchedule } from "~/lib/database";
 import { confirmSchedule } from "~/lib/notifications";
 
@@ -303,7 +303,7 @@ export default function DeviceScreen() {
     const [slotStatuses, setSlotStatuses] = useState(() => computeStatuses(8, 0, 20, 0, null));
     const [alarmLabels, setAlarmLabels] = useState({ morning: "08:00", evening: "20:00" });
     const alarmTimes = useRef({ mh: 8, mm: 0, eh: 20, em: 0 });
-    const bottomSheetRef = useRef<BottomSheetModal>(null);
+
     const router = useRouter();
     const isConnected = useBleDeviceStore((state) => state.isConnected);
     const battery = useBleDeviceStore((state) => state.battery);
@@ -381,10 +381,7 @@ export default function DeviceScreen() {
                     </View>
 
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <BluetoothStatusPill
-                            isConnected={isConnected}
-                            onPress={() => bottomSheetRef.current?.present()}
-                        />
+                        <BluetoothStatusPill isConnected={isConnected} />
                         <Pressable
                             onPress={() => router.push("/settings")}
                             className="active:opacity-60"
@@ -523,77 +520,6 @@ export default function DeviceScreen() {
                 </View>
             )}
 
-            <SettingsBottomSheet ref={bottomSheetRef}>
-                <Text className="text-zinc-900 dark:text-white text-[18px] font-bold mb-4">Nastavení lékovky</Text>
-
-                <View className="gap-3">
-                    <View className="flex-row items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                        <View className="flex-row items-center gap-4">
-                            <View className="w-10 h-10 rounded-full bg-blue-500/10 items-center justify-center">
-                                <Ionicons name="volume-high" size={20} color={alertsEnabled ? "#3b82f6" : "#71717a"} />
-                            </View>
-                            <Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
-                                Zvukové upozornění
-                            </Text>
-                        </View>
-
-                        <Switch
-                            value={alertsEnabled}
-                            onValueChange={async (val) => {
-                                try {
-                                    await BleWrapperModule.setAlertsEnabled(val);
-                                    setAlertsEnabled(val);
-                                    updateDeviceSettings({ alerts_enabled: val });
-                                } catch (e) {
-                                    console.error(e);
-                                }
-                            }}
-                            trackColor={{ false: "#3f3f46", true: "#3b82f6" }}
-                            thumbColor="#ffffff"
-                        />
-                    </View>
-
-                    <Pressable
-                        onPress={async () => {
-                            try {
-                                await BleWrapperModule.findMy();
-                            } catch (e) {
-                                console.error(e);
-                            }
-                        }}
-                        className="flex-row items-center p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 active:opacity-70"
-                    >
-                        <View className="w-10 h-10 rounded-full bg-red-500/10 items-center justify-center mr-4">
-                            <Ionicons name="location" size={20} color="#ef4444" />
-                        </View>
-                        <Text className="text-zinc-900 dark:text-white text-[15px] font-medium flex-1">
-                            Najít lékovku
-                        </Text>
-                        <Ionicons name="chevron-forward" size={18} color="#71717a" />
-                    </Pressable>
-
-                    <Pressable
-                        onPress={async () => {
-                            try {
-                                await BleWrapperModule.syncTime();
-                                Alert.alert("Úspěch", "Čas byl synchronizován s telefonem.");
-                            } catch (e) {
-                                console.error(e);
-                                Alert.alert("Chyba", "Nepodařilo se synchronizovat čas.");
-                            }
-                        }}
-                        className="flex-row items-center p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 active:opacity-70"
-                    >
-                        <View className="w-10 h-10 rounded-full bg-indigo-500/10 items-center justify-center mr-4">
-                            <Ionicons name="time" size={20} color="#6366f1" />
-                        </View>
-                        <Text className="text-zinc-900 dark:text-white text-[15px] font-medium flex-1">
-                            Synchronizovat čas
-                        </Text>
-                        <Ionicons name="chevron-forward" size={18} color="#71717a" />
-                    </Pressable>
-                </View>
-            </SettingsBottomSheet>
         </SafeAreaView>
     );
 }
