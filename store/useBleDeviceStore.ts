@@ -51,11 +51,11 @@ export const useBleDeviceStore = create<DeviceState>((set) => ({
 		set((state) => {
 			const newA = state.slotsA.map((slot, i) => ({
 				...slot,
-				taken: ((stateNum >> i) & 1) === 1,
+				taken: ((stateNum >> (i * 2)) & 1) === 1,
 			}));
 			const newB = state.slotsB.map((slot, i) => ({
 				...slot,
-				taken: ((stateNum >> (i + 7)) & 1) === 1,
+				taken: ((stateNum >> (i * 2 + 1)) & 1) === 1,
 			}));
 			return { slotsA: newA, slotsB: newB };
 		}),

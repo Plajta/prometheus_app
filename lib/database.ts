@@ -108,10 +108,10 @@ export function saveDeviceState(state: DeviceState) {
 	try {
 		let cupState = 0;
 		state.slotsA.forEach((slot, i) => {
-			if (slot.taken) cupState |= 1 << i;
+			if (slot.taken) cupState |= 1 << (i * 2);
 		});
 		state.slotsB.forEach((slot, i) => {
-			if (slot.taken) cupState |= 1 << (i + 7);
+			if (slot.taken) cupState |= 1 << (i * 2 + 1);
 		});
 
 		db.runSync(

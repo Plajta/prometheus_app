@@ -330,10 +330,10 @@ export default function DeviceScreen() {
             const { slotsA: a, slotsB: b } = useBleDeviceStore.getState();
             let cupState = 0;
             a.forEach((s, i) => {
-                if (s.taken) cupState |= 1 << i;
+                if (s.taken) cupState |= 1 << (i * 2);
             });
             b.forEach((s, i) => {
-                if (s.taken) cupState |= 1 << (i + 7);
+                if (s.taken) cupState |= 1 << (i * 2 + 1);
             });
             BleWrapperModule.writeCupState(cupState).catch(console.error);
             updateDeviceSettings({ cup_state: cupState });
