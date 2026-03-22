@@ -129,8 +129,6 @@ export function saveDeviceState(state: DeviceState) {
 
 export function getDeviceSettings() {
 	try {
-		console.log("deicejsadjoais");
-
 		return db.getFirstSync<{
 			alerts_enabled: number | null;
 			alarm_morning_h: number | null;
