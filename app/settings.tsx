@@ -371,8 +371,7 @@ function AlarmsSheet({
 			<Pressable
 				onPress={handleSave}
 				disabled={loading}
-				className="rounded-2xl py-4 items-center active:opacity-80"
-				style={{ backgroundColor: "#2563eb" }}
+				className="flex-row items-center justify-center gap-2 rounded-2xl py-4 active:opacity-80 bg-[#eab308]"
 			>
 				<Text className="font-semibold text-[15px] text-white">
 					{loading ? "Ukládám…" : "Uložit do lékovky"}
@@ -430,7 +429,10 @@ function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: 
 	return (
 		<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
 			<View className="flex-row items-center justify-between px-1">
-				<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">Eskalace po</Text>
+				<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">
+					Eskalace upozornění
+				</Text>
+
 				<Pressable onPress={onClose} className="active:opacity-60">
 					<Ionicons name="close" size={22} color="#71717a" />
 				</Pressable>
@@ -442,32 +444,25 @@ function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: 
 						<Pressable
 							key={v}
 							onPress={() => setEscalation(v)}
-							style={{
-								flex: 1,
-								paddingVertical: 18,
-								borderRadius: 16,
-								alignItems: "center",
-								backgroundColor: escalation === v ? "#2563eb" : isDark ? "#27272a" : "#f4f4f5",
-								borderWidth: 1.5,
-								borderColor: escalation === v ? "#2563eb" : isDark ? "#3f3f46" : "#e4e4e7",
-							}}
+							className={`flex-1 py-[18px] rounded-2xl items-center border-2 ${
+								escalation === v
+									? "bg-yellow-400 border-yellow-400"
+									: isDark
+										? "bg-zinc-800 border-zinc-700"
+										: "bg-zinc-100 border-zinc-200"
+							}`}
 						>
 							<Text
-								style={{
-									fontSize: 20,
-									fontWeight: "700",
-									color: escalation === v ? "#ffffff" : isDark ? "#a1a1aa" : "#71717a",
-								}}
+								className={`text-xl font-bold ${
+									escalation === v ? "text-white" : isDark ? "text-zinc-400" : "text-zinc-500"
+								}`}
 							>
 								{v}
 							</Text>
 							<Text
-								style={{
-									fontSize: 10,
-									fontWeight: "500",
-									marginTop: 2,
-									color: escalation === v ? "#bfdbfe" : isDark ? "#52525b" : "#a1a1aa",
-								}}
+								className={`text-[10px] font-medium mt-0.5 ${
+									escalation === v ? "text-yellow-100" : isDark ? "text-zinc-600" : "text-zinc-400"
+								}`}
 							>
 								min
 							</Text>
@@ -479,8 +474,7 @@ function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: 
 			<Pressable
 				onPress={handleSave}
 				disabled={loading}
-				className="rounded-2xl py-4 items-center active:opacity-80"
-				style={{ backgroundColor: "#2563eb" }}
+				className="flex-row items-center justify-center gap-2 rounded-2xl py-4 active:opacity-80 bg-[#eab308]"
 			>
 				<Text className="font-semibold text-[15px] text-white">
 					{loading ? "Ukládám…" : "Uložit do lékovky"}
@@ -721,7 +715,6 @@ function FamilySheet({ onClose, relations, setRelations, onAfterAdd }: FamilyShe
 				onPress={handleOpenCamera}
 				className="flex-row items-center justify-center gap-2 rounded-2xl py-4 active:opacity-80 bg-[#eab308]"
 			>
-				<Ionicons name="qr-code-outline" size={18} color="#ffffff" />
 				<Text className="text-white font-semibold text-[15px]">Přidat příbuzného</Text>
 			</Pressable>
 		</View>
@@ -827,13 +820,14 @@ export default function SettingsScreen() {
 								chevron
 								onPress={() => alarmsSheetRef.current?.present()}
 							/>
+
 							<Divider />
 
 							<SettingRow
 								icon="time"
 								iconContainerClassName="bg-[#fef3c7] dark:bg-[#2d1e0d]"
 								iconColor="#d97706"
-								label="Eskalace po"
+								label="Eskalace upozornění"
 								value={escalationLabel}
 								onPress={() => escalationSheetRef.current?.present()}
 								chevron
