@@ -27,8 +27,6 @@ import BleWrapperModule from "~/modules/ble-wrapper/src/BleWrapperModule";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
-// ─── SettingRow ───────────────────────────────────────────────────────────────
-
 interface RowProps {
 	icon: IoniconsName;
 	iconContainerClassName?: string;
@@ -97,7 +95,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 	);
 }
 
-function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle: (v: boolean) => void }) {
+function CaregiverNotifSheet({
+	onClose,
+	enabled,
+	onToggle,
+}: {
+	onClose: () => void;
+	enabled: boolean;
+	onToggle: (v: boolean) => void;
+}) {
 	const isDark = useColorScheme() === "dark";
 	const { deviceId } = useDeviceStore();
 	const insets = useSafeAreaInsets();
@@ -105,9 +111,15 @@ function CaregiverNotifSheet({ enabled, onToggle }: { enabled: boolean; onToggle
 
 	return (
 		<View className="flex-1 gap-5 pt-2" style={{ paddingBottom: bottomPad }}>
-			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">
-				Notifikace příbuzným
-			</Text>
+			<View className="flex-row items-center justify-between px-1">
+				<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">
+					Sdílet notifikace příbuzným
+				</Text>
+
+				<Pressable onPress={onClose} className="active:opacity-60">
+					<Ionicons name="close" size={22} color="#71717a" />
+				</Pressable>
+			</View>
 
 			<View className="flex-1 items-center justify-center gap-5">
 				{deviceId ? (
@@ -285,7 +297,7 @@ function AlarmsSheet({
 	return (
 		<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
 			<View className="flex-row items-center justify-between px-1">
-				<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">Časy upozornění</Text>
+				<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">Časy upozornění</Text>
 				<Pressable onPress={onClose} className="active:opacity-60">
 					<Ionicons name="close" size={22} color="#71717a" />
 				</Pressable>
@@ -390,8 +402,19 @@ function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: 
 			updateDeviceSettings({ alarm_interval: escalation * 60 });
 
 			const s = getDeviceSettings();
-			if (s?.alarm_morning_h != null && s?.alarm_morning_m != null && s?.alarm_evening_h != null && s?.alarm_evening_m != null) {
-				syncSchedule(s.alarm_morning_h, s.alarm_morning_m, s.alarm_evening_h, s.alarm_evening_m, escalation).catch(console.error);
+			if (
+				s?.alarm_morning_h != null &&
+				s?.alarm_morning_m != null &&
+				s?.alarm_evening_h != null &&
+				s?.alarm_evening_m != null
+			) {
+				syncSchedule(
+					s.alarm_morning_h,
+					s.alarm_morning_m,
+					s.alarm_evening_h,
+					s.alarm_evening_m,
+					escalation,
+				).catch(console.error);
 			}
 
 			onSaved?.(escalation);
@@ -407,7 +430,7 @@ function EscalationSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: 
 	return (
 		<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
 			<View className="flex-row items-center justify-between px-1">
-				<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">Eskalace po</Text>
+				<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">Eskalace po</Text>
 				<Pressable onPress={onClose} className="active:opacity-60">
 					<Ionicons name="close" size={22} color="#71717a" />
 				</Pressable>
@@ -473,9 +496,10 @@ interface FamilySheetProps {
 	relations: FamilyRelation[];
 	setRelations: React.Dispatch<React.SetStateAction<FamilyRelation[]>>;
 	onAfterAdd: () => void;
+	onClose: () => void;
 }
 
-function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) {
+function FamilySheet({ onClose, relations, setRelations, onAfterAdd }: FamilySheetProps) {
 	const isDark = useColorScheme() === "dark";
 	const { deviceId } = useDeviceStore();
 	const { height } = useWindowDimensions();
@@ -542,9 +566,10 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 		return (
 			<View className="flex-1 pt-2 gap-4" style={{ paddingBottom: bottomPad }}>
 				<View className="flex-row items-center justify-between px-1">
-					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+					<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">
 						Přidat příbuzného
 					</Text>
+
 					<Pressable onPress={() => setView("list")} className="active:opacity-60">
 						<Ionicons name="close" size={22} color="#71717a" />
 					</Pressable>
@@ -582,7 +607,7 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 		return (
 			<View className="flex-1 pt-2 gap-5" style={{ paddingBottom: bottomPad }}>
 				<View className="flex-row items-center justify-between px-1">
-					<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+					<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">
 						Přidat příbuzného
 					</Text>
 					<Pressable onPress={() => setView("list")} className="active:opacity-60">
@@ -601,7 +626,7 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 					</View>
 
 					<View className="gap-2">
-						<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">
+						<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">
 							Jméno příbuzného
 						</Text>
 						<BottomSheetTextInput
@@ -639,7 +664,12 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 
 	return (
 		<View className="flex-1 pt-2 gap-4" style={{ paddingBottom: bottomPad }}>
-			<Text className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase text-center">Příbuzní</Text>
+			<View className="flex-row items-center justify-between px-1">
+				<Text className="text-zinc-500 text-[14px] font-bold tracking-widest uppercase">Správa příbuzných</Text>
+				<Pressable onPress={onClose} className="active:opacity-60">
+					<Ionicons name="close" size={22} color="#71717a" />
+				</Pressable>
+			</View>
 
 			<View className="flex-1">
 				{relations.length === 0 ? (
@@ -659,21 +689,27 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 						{relations.map((item, index) => (
 							<View key={item.id}>
 								{index > 0 && <View className="h-px bg-zinc-100 dark:bg-zinc-800 mx-1" />}
-								<View className="flex-row items-center gap-3 py-3 px-1">
-									<View className="w-10 h-10 rounded-full bg-blue-500/15 items-center justify-center">
-										<Ionicons name="person" size={18} color="#3b82f6" />
+								<View className="flex-row items-center gap-3 py-3">
+									<View
+										className={`w-9 h-9 rounded-xl items-center justify-center border bg-yellow-100 border-yellow-200`}
+									>
+										<Ionicons name="person" size={17} color="#eab308" />
 									</View>
+
 									<View className="flex-1 gap-0.5">
 										<Text className="text-zinc-900 dark:text-white text-[15px] font-medium">
 											{item.name}
 										</Text>
 									</View>
-									<Pressable
-										onPress={() => handleDelete(item)}
-										className="w-8 h-8 items-center justify-center active:opacity-60"
-									>
-										<Ionicons name="trash-outline" size={17} color="#ef4444" />
-									</Pressable>
+
+									<View className={`w-9 h-9 rounded-xl items-center justify-center mr-2 bg-red-100`}>
+										<Pressable
+											onPress={() => handleDelete(item)}
+											className="w-8 h-8 items-center justify-center active:opacity-60"
+										>
+											<Ionicons name="trash" size={17} color="#ef4444" />
+										</Pressable>
+									</View>
 								</View>
 							</View>
 						))}
@@ -683,8 +719,7 @@ function FamilySheet({ relations, setRelations, onAfterAdd }: FamilySheetProps) 
 
 			<Pressable
 				onPress={handleOpenCamera}
-				className="flex-row items-center justify-center gap-2 rounded-2xl py-4 active:opacity-80"
-				style={{ backgroundColor: "#2563eb" }}
+				className="flex-row items-center justify-center gap-2 rounded-2xl py-4 active:opacity-80 bg-[#eab308]"
 			>
 				<Ionicons name="qr-code-outline" size={18} color="#ffffff" />
 				<Text className="text-white font-semibold text-[15px]">Přidat příbuzného</Text>
@@ -821,15 +856,20 @@ export default function SettingsScreen() {
 				<Text className="text-center text-zinc-500 text-xs mt-2 mb-4">Prometheus v1.0.0 · Plajta 2026</Text>
 			</ScrollView>
 
-			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps}>
+			<BottomSheetModal ref={caregiverSheetRef} {...sheetProps} snapPoints={["50%"]}>
 				<BottomSheetView className="flex-1 px-6 py-2">
-					<CaregiverNotifSheet enabled={caregiverNotif} onToggle={setCaregiverNotif} />
+					<CaregiverNotifSheet
+						onClose={() => caregiverSheetRef.current?.dismiss()}
+						enabled={caregiverNotif}
+						onToggle={setCaregiverNotif}
+					/>
 				</BottomSheetView>
 			</BottomSheetModal>
 
 			<BottomSheetModal ref={familySheetRef} {...sheetProps}>
 				<BottomSheetView className="flex-1 h-full px-6 py-2">
 					<FamilySheet
+						onClose={() => familySheetRef.current?.dismiss()}
 						relations={relations}
 						setRelations={setRelations}
 						onAfterAdd={() => familySheetRef.current?.snapToIndex(0)}
